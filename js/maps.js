@@ -18,6 +18,7 @@
     { label:"상호작용 지점 2", x:52, y:63 },
     { label:"상호작용 지점 3", x:39, y:55 }
   ];
+  const activeMoves = new WeakMap();
   const coords=(point)=>`left:${point.x}%;top:${point.y}%`;
   function stampMarkup(point, name) {
     return `<div class="map-stamp" data-stamp style="${coords(point)}" data-name="${escapeHtml(name)}">${escapeHtml((name||"인장").slice(0,1))}</div>`;
@@ -70,9 +71,26 @@
       const routePoints=[previous,...waypoints,point].filter((item)=>Number.isFinite(Number(item.x))&&Number.isFinite(Number(item.y)));
       const polyline=document.createElementNS("http://www.w3.org/2000/svg","polyline");polyline.setAttribute("points",routePoints.map((item)=>`${item.x},${item.y}`).join(" "));polyline.setAttribute("class","map-route-line");route.append(polyline);board.insertBefore(route,stamp);
       const name=state.character?.name||"내 캐릭터";stamp.dataset.name=name;stamp.textContent=name.slice(0,1);
-      requestAnimationFrame(()=>{stamp.style.left=`${point.x}%`;stamp.style.top=`${point.y}%`;});
-      setTimeout(()=>route.remove(),1120);
+      animateAlongRoute(stamp,board,routePoints,1120,()=>route.remove());
     }
+  }
+  function animateAlongRoute(stamp,board,routePoints,duration,onComplete=()=>{}){
+    const previousFrame=activeMoves.get(stamp);if(previousFrame)globalThis.cancelAnimationFrame?.(previousFrame);
+    const bounds=board.getBoundingClientRect();
+    const pixelPoints=routePoints.map((point)=>({x:Number(point.x)*bounds.width/100,y:Number(point.y)*bounds.height/100}));
+    const segments=[];let totalLength=0;
+    for(let i=1;i<pixelPoints.length;i++){const from=pixelPoints[i-1],to=pixelPoints[i],length=Math.hypot(to.x-from.x,to.y-from.y);segments.push({from,to,length});totalLength+=length;}
+    let startedAt=null;
+    const frame=(timestamp)=>{
+      if(startedAt===null)startedAt=timestamp;
+      const elapsed=Math.min(duration,Math.max(0,timestamp-startedAt));
+      let distance=totalLength*(duration?elapsed/duration:1);let position=pixelPoints[pixelPoints.length-1];
+      for(const segment of segments){if(distance<=segment.length){const ratio=segment.length?distance/segment.length:1;position={x:segment.from.x+(segment.to.x-segment.from.x)*ratio,y:segment.from.y+(segment.to.y-segment.from.y)*ratio};break;}distance-=segment.length;}
+      stamp.style.left=`${position.x/bounds.width*100}%`;stamp.style.top=`${position.y/bounds.height*100}%`;
+      if(elapsed<duration){activeMoves.set(stamp,requestAnimationFrame(frame));}
+      else{activeMoves.delete(stamp);onComplete();}
+    };
+    activeMoves.set(stamp,requestAnimationFrame(frame));
   }
   function showInteraction(index) {
     window.GHApp.openDialog("상호작용 지점",`<p>상호작용 지점 ${index+1}</p><p>물체와 설명은 맵이 정해진 뒤 추가할게요.</p>`);
