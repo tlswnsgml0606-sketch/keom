@@ -15,24 +15,31 @@
     authMode: "signup",
     character: null,
     page: "",
-    statusVersion: 2,
-    status: { fatigue: 100, life: 100, mental: 400 },
+    statusVersion: 3,
+    status: { fatigue: 0, life: 100, mental: 400, sleepStartedAt: null },
     map: {
       active: "whole",
       wholePoint: 0,
       detailPoint: 0,
       roomPoint: 0,
+      roomArrivedPoint: 0,
       detailScene: "room",
+      detailArrivedPoint: 0,
       currentPoint: "침대 옆"
     },
     records: [],
     areaMessages: [],
     conversations: { 대화: [], 사담: [] },
+    selectedChat: "임시",
     alerts: [],
     alertFilter: "전체",
     chatFilter: "대화",
     inviteCodes: [],
-    pastEvents: []
+    pastEvents: [],
+    events: [],
+    letters: [],
+    demoAccount: { id:"demo-imsi", name:"임시", portrait:"임", isDemo:true },
+    demoSeeded: false
   });
   function load() {
     try {
@@ -41,7 +48,11 @@
       const defaults=freshState();
       const migratedStatus={ ...defaults.status, ...(value.status || {}) };
       if(Number(value.statusVersion||0)<2)migratedStatus.mental=400;
-      return { ...defaults, ...value, statusVersion:2, status:migratedStatus, map:{ ...defaults.map, ...(value.map || {}) }, conversations:{ ...defaults.conversations, ...(value.conversations || {}) } };
+      if(Number(value.statusVersion||0)<3 && value.account)migratedStatus.fatigue=5;
+      const map={ ...defaults.map, ...(value.map || {}) };
+      if(map.roomArrivedPoint===undefined)map.roomArrivedPoint=map.roomPoint;
+      if(map.detailArrivedPoint===undefined)map.detailArrivedPoint=map.detailPoint;
+      return { ...defaults, ...value, statusVersion:3, status:migratedStatus, map, conversations:{ ...defaults.conversations, ...(value.conversations || {}) }, events:Array.isArray(value.events)?value.events:[], letters:Array.isArray(value.letters)?value.letters:[] };
     } catch (_error) {
       return freshState();
     }
@@ -73,10 +84,27 @@
     state.records.push({ id:Date.now()+Math.random(), type, text, date, createdAt:Date.now() });
     save();
   }
-  function addAlert(type, title, text) {
-    state.alerts.unshift({ id:Date.now()+Math.random(), type, title, text, read:false, createdAt:Date.now() });
+  function addAlert(type, title, text, extra={}) {
+    state.alerts.unshift({ id:Date.now()+Math.random(), type, title, text, read:false, createdAt:Date.now(), ...extra });
     save();
   }
+  function ensureDemoData(){
+    if(!state.conversations.대화.some((item)=>item.with==="임시"))state.conversations.대화.push({id:"demo-talk-1",with:"임시",author:"임시",text:"안녕하세요! 저는 채팅 점검용 계정 임시예요.",mine:false,createdAt:Date.now()-120000});
+    if(!state.conversations.사담.some((item)=>item.with==="임시"))state.conversations.사담.push({id:"demo-talk-2",with:"임시",author:"임시",text:"이 사담 대화도 현재 브라우저 안에서만 보여요.",mine:false,createdAt:Date.now()-60000});
+    if(!state.events.some((item)=>item.id==="demo-event"))state.events.push({id:"demo-event",title:"탐방 이벤트",date:"2026-10-25",time:"10:00",team:["임시"],demo:true});
+    if(state.account&&state.character&&!state.letters.some((item)=>item.id==="demo-invite")){
+      state.letters.unshift({id:"demo-invite",type:"team-proposal",from:"임시",to:state.character.name,subject:"탐방 이벤트 팀 제의",body:"안녕하세요. 2026년 10월 25일 10시에 진행하는 탐방 이벤트에 함께하고 싶어 편지를 보내요. 수락 또는 거절로 답장을 보내주세요.",eventId:"demo-event",status:"pending",createdAt:Date.now()});
+      addAlert("편지","탐방 이벤트 팀 제의","임시 님이 탐방 이벤트 팀을 제의했어요.",{letterId:"demo-invite"});
+    }
+    state.demoSeeded=true;save();
+  }
+  function startSleep(now=Date.now()){if(Number(state.status.fatigue)<=0)return false;state.status.sleepStartedAt=now;save();return true;}
+  function applySleepRecovery(now=Date.now()){
+    const started=Number(state.status.sleepStartedAt);if(!started||Number(state.status.fatigue)<=0)return false;
+    const ticks=Math.floor((now-started)/300000);if(ticks<1)return false;
+    state.status.fatigue=Math.max(0,Number(state.status.fatigue)-ticks);
+    state.status.sleepStartedAt=state.status.fatigue===0?null:started+ticks*300000;save();return true;
+  }
   function unreadCount() { return state.alerts.filter((item)=>!item.read).length; }
-  window.GHData = { KEY, alphabet, statEffects, freshState, load, save, clear, get state(){return state;}, setState, todayKey, generateCode, addRecord, addAlert, unreadCount };
+  window.GHData = { KEY, alphabet, statEffects, freshState, load, save, clear, get state(){return state;}, setState, todayKey, generateCode, addRecord, addAlert, unreadCount, ensureDemoData, startSleep, applySleepRecovery };
 })();
