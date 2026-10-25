@@ -18,6 +18,7 @@
     { label:"상호작용 지점 2", x:52, y:63 },
     { label:"상호작용 지점 3", x:39, y:55 }
   ];
+  const REFERENCE_MOVE_MS = 1120;
   const activeMoves = new WeakMap();
   const coords=(point)=>`left:${point.x}%;top:${point.y}%`;
   function stampMarkup(point, name) {
@@ -71,15 +72,18 @@
       const routePoints=[previous,...waypoints,point].filter((item)=>Number.isFinite(Number(item.x))&&Number.isFinite(Number(item.y)));
       const polyline=document.createElementNS("http://www.w3.org/2000/svg","polyline");polyline.setAttribute("points",routePoints.map((item)=>`${item.x},${item.y}`).join(" "));polyline.setAttribute("class","map-route-line");route.append(polyline);board.insertBefore(route,stamp);
       const name=state.character?.name||"내 캐릭터";stamp.dataset.name=name;stamp.textContent=name.slice(0,1);
-      animateAlongRoute(stamp,board,routePoints,1120,()=>route.remove());
+      animateAlongRoute(stamp,board,routePoints,points,()=>route.remove());
     }
   }
-  function animateAlongRoute(stamp,board,routePoints,duration,onComplete=()=>{}){
+  function distanceOnBoard(from,to,bounds){return Math.hypot((Number(to.x)-Number(from.x))*bounds.width/100,(Number(to.y)-Number(from.y))*bounds.height/100);}
+  function animateAlongRoute(stamp,board,routePoints,referencePoints,onComplete=()=>{}){
     const previousFrame=activeMoves.get(stamp);if(previousFrame)globalThis.cancelAnimationFrame?.(previousFrame);
     const bounds=board.getBoundingClientRect();
     const pixelPoints=routePoints.map((point)=>({x:Number(point.x)*bounds.width/100,y:Number(point.y)*bounds.height/100}));
     const segments=[];let totalLength=0;
     for(let i=1;i<pixelPoints.length;i++){const from=pixelPoints[i-1],to=pixelPoints[i],length=Math.hypot(to.x-from.x,to.y-from.y);segments.push({from,to,length});totalLength+=length;}
+    const referenceLength=referencePoints.length>=3?distanceOnBoard(referencePoints[1],referencePoints[2],bounds):0;
+    const duration=referenceLength?totalLength/referenceLength*REFERENCE_MOVE_MS:REFERENCE_MOVE_MS;
     let startedAt=null;
     const frame=(timestamp)=>{
       if(startedAt===null)startedAt=timestamp;
