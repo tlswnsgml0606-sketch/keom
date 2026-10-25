@@ -25,7 +25,7 @@
   const roomRed = [
     { label:"달력 열기", x:62, y:31, action:"calendar" },
     { label:"침대에서 자기", x:27, y:49, action:"sleep" },
-    { label:"문 밖으로 나가기", x:51, y:86, action:"exit-room" }
+    { label:"나가기", x:64, y:75, action:"exit-room" }
   ];
   const outsideRed = [...detailRed,{label:"내 방으로 들어가기",x:82,y:20,action:"enter-room"}];
   const REFERENCE_MOVE_MS = 1120;
