@@ -8,6 +8,8 @@
   --blue:#4777a8;
   --red:#bd514a;
   --green:#718b80;
+  --speech-own:#dce7df;
+  --speech-other:#e7e1d7;
   --frame:#34383b;
   font-family:system-ui,"Malgun Gothic",sans-serif;
   color:var(--ink);
@@ -19,7 +21,7 @@ button,input,textarea { font:inherit; }
 button { color:inherit; }
 button:focus-visible,input:focus-visible,textarea:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
 .app-shell { width:min(100%,1280px); margin:0 auto; padding:22px 24px; }
-.game-screen { min-height:min(880px,calc(100vh - 44px)); display:flex; flex-direction:column; overflow:hidden; border:1px solid #c9c5bd; border-radius:19px; background:var(--paper); box-shadow:0 8px 24px #10182718; }
+.game-screen { height:min(880px,calc(100vh - 44px)); min-height:min(880px,calc(100vh - 44px)); display:flex; flex-direction:column; overflow:hidden; border:1px solid #c9c5bd; border-radius:19px; background:var(--paper); box-shadow:0 8px 24px #10182718; }
 .game-screen.mobile { width:min(100%,470px); min-height:min(900px,calc(100vh - 44px)); margin:0 auto; border:5px solid var(--frame); border-radius:34px; }
 .notch { width:92px; height:11px; margin:0 auto 5px; border-radius:0 0 10px 10px; background:var(--frame); }
 .status-bar { display:flex; justify-content:space-around; align-items:center; gap:8px; min-height:38px; padding:7px 12px; border-bottom:1px solid var(--line); background:#fff; color:#35404a; font-size:11px; }
@@ -85,14 +87,23 @@ button:focus-visible,input:focus-visible,textarea:focus-visible { outline:2px so
 .map-route-line { fill:none; stroke:#4777a8; stroke-width:.7; stroke-dasharray:1.5 1.4; stroke-linecap:round; vector-effect:non-scaling-stroke; }
 .map-stamp { position:absolute; z-index:3; display:grid; width:39px; height:39px; place-items:center; border:2px solid white; border-radius:50%; background:#718b80; color:#fff; font-size:12px; font-weight:700; box-shadow:0 2px 8px #17202b45; transform:translate(-50%,-50%); transition:left 1.12s cubic-bezier(.2,.75,.25,1),top 1.12s cubic-bezier(.2,.75,.25,1); pointer-events:none; }
 .map-stamp::after { position:absolute; top:-19px; left:50%; width:max-content; max-width:125px; padding:3px 6px; border-radius:5px; background:#fffefa; color:var(--ink); content:attr(data-name); font-size:9px; font-weight:500; transform:translateX(-50%); }
-.stamp-bubble-stack { position:absolute; z-index:4; display:flex; width:min(220px,55%); flex-direction:column; gap:4px; overflow:visible; transform:translate(-50%,-100%); pointer-events:none; }
-.stamp-bubble { flex:0 0 auto; max-width:100%; padding:6px 9px; border:1px solid var(--line); border-radius:10px; background:#fffefa; color:var(--ink); font-size:10px; line-height:1.35; overflow-wrap:anywhere; box-shadow:0 2px 5px #17202b14; }
+.stamp-bubble-stack { position:absolute; z-index:4; display:flex; width:max-content; max-width:calc(100% - 12px); flex-direction:column; gap:4px; overflow:visible; transform:translate(-50%,-100%); pointer-events:none; }
+.stamp-bubble { position:relative; width:max-content; max-width:min(220px,55vw); flex:0 0 auto; padding:6px 9px; border:1px solid var(--line); border-radius:10px; color:var(--ink); font-size:10px; line-height:1.35; overflow-wrap:anywhere; box-shadow:0 2px 5px #17202b14; }
+.stamp-bubble::before { position:absolute; top:50%; width:8px; height:8px; background:inherit; content:""; }
+.stamp-bubble.mine { align-self:flex-end; background:var(--speech-own); }
+.stamp-bubble.mine::before { right:-5px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); transform:translateY(-50%) rotate(-45deg); }
+.stamp-bubble.other { align-self:flex-start; background:var(--speech-other); }
+.stamp-bubble.other::before { left:-5px; border-left:1px solid var(--line); border-bottom:1px solid var(--line); transform:translateY(-50%) rotate(45deg); }
 .stamp-bubble strong { font-weight:700; }
 .map-legend { display:flex; flex-wrap:wrap; gap:14px; padding:10px 3px; color:var(--muted); font-size:10px; }
 .legend-dot { display:inline-block; width:8px; height:8px; margin-right:5px; border-radius:50%; vertical-align:middle; }
 .legend-dot.blue { background:#3f7eb9; }.legend-dot.red { background:#c7504b; }
-.map-speech { position:relative; max-width:86%; margin:7px 0 7px 47px; padding:8px 10px; border:1px solid var(--line); border-radius:10px; background:#fffefa; font-size:11px; line-height:1.5; overflow-wrap:anywhere; }
-.map-speech::before { position:absolute; left:-7px; top:10px; width:10px; height:10px; border-left:1px solid var(--line); border-bottom:1px solid var(--line); background:#fffefa; content:""; transform:rotate(45deg); }
+.map-speech { position:relative; max-width:86%; padding:8px 10px; border:1px solid var(--line); border-radius:10px; font-size:11px; line-height:1.5; overflow-wrap:anywhere; }
+.map-speech::before { position:absolute; top:10px; width:10px; height:10px; content:""; }
+.map-speech.other { align-self:flex-start; margin:7px auto 7px 47px; background:var(--speech-other); }
+.map-speech.other::before { left:-7px; border-left:1px solid var(--line); border-bottom:1px solid var(--line); background:var(--speech-other); transform:rotate(45deg); }
+.map-speech.mine { align-self:flex-end; margin:7px 47px 7px auto; background:var(--speech-own); }
+.map-speech.mine::before { right:-7px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); background:var(--speech-own); transform:rotate(-45deg); }
 .speech-name { margin-right:5px; font-weight:700; }
 .speech-history { padding:8px 0 3px; }
 .speech-history h2 { margin:0 0 7px; font-size:12px; }
@@ -158,6 +169,14 @@ button:focus-visible,input:focus-visible,textarea:focus-visible { outline:2px so
 .danger-action { color:#9c3f3a; border-color:#caa5a0; }
 .auth-demo-note { max-width:360px; margin:14px auto 8px; color:var(--muted); font-size:10px; line-height:1.55; text-align:center; }
 .auth-mode-toggle { display:block; margin:8px auto; }
+.dialog { width:min(420px,calc(100vw - 32px)); padding:0; border:1px solid #c9c5bd; border-radius:15px; background:var(--paper); color:var(--ink); box-shadow:0 12px 40px #0003; }
+.dialog::backdrop { background:#11182770; }
+.dialog-inner { position:relative; padding:22px; }
+.dialog-inner h2 { margin:0 24px 10px 0; font-size:15px; }
+.dialog-close { position:absolute; top:13px; right:14px; border:0; background:transparent; font-size:20px; cursor:pointer; }
+.dialog p { margin:0; color:var(--muted); font-size:11px; line-height:1.6; }
+.dialog-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+.withdraw-note { color:var(--muted); font-size:10px !important; line-height:1.6; }
 .invite-code { padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:#fffefa; font-family:monospace; font-size:12px; }
 .modal-backdrop { position:fixed; inset:0; z-index:50; display:grid; place-items:center; padding:20px; background:#11182770; }
 .modal { width:min(100%,420px); padding:21px; border:1px solid #c9c5bd; border-radius:15px; background:var(--paper); box-shadow:0 12px 40px #0003; }
@@ -166,7 +185,6 @@ button:focus-visible,input:focus-visible,textarea:focus-visible { outline:2px so
 .toast { position:fixed; right:18px; bottom:75px; z-index:80; max-width:min(90vw,360px); padding:11px 14px; border:1px solid #bfc7bf; border-radius:10px; background:#fffefa; box-shadow:0 6px 22px #10182720; font-size:11px; }
 .screen-footer-note { padding:0 18px 10px; color:var(--muted); font-size:9px; }
 @media(min-width:900px) {
-  .game-screen { min-height:720px; }
   .map-board { min-height:500px; }
   .map-board[data-map-board="detail"] { min-height:300px; }
   .screen-heading { padding:18px 24px 12px; }
@@ -174,7 +192,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible { outline:2px so
 }
 @media(max-width:600px) {
   .app-shell { padding:0; }
-  .game-screen,.game-screen.mobile { width:100%; min-height:100dvh; min-height:100vh; border:0; border-radius:0; box-shadow:none; }
+  .game-screen,.game-screen.mobile { width:100%; height:100dvh; min-height:100dvh; border:0; border-radius:0; box-shadow:none; }
   .notch { margin-bottom:4px; }
   .status-bar { min-height:34px; padding:6px 8px; font-size:9px; }
   .screen-heading { padding:13px 14px 9px; }

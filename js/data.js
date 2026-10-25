@@ -15,7 +15,8 @@
     authMode: "signup",
     character: null,
     page: "",
-    status: { fatigue: 100, life: 100, mental: 100 },
+    statusVersion: 2,
+    status: { fatigue: 100, life: 100, mental: 400 },
     map: {
       active: "whole",
       wholePoint: 0,
@@ -36,7 +37,9 @@
       const value = JSON.parse(localStorage.getItem(KEY) || "null");
       if (!value || typeof value !== "object") return freshState();
       const defaults=freshState();
-      return { ...defaults, ...value, status:{ ...defaults.status, ...(value.status || {}) }, map:{ ...defaults.map, ...(value.map || {}) }, conversations:{ ...defaults.conversations, ...(value.conversations || {}) } };
+      const migratedStatus={ ...defaults.status, ...(value.status || {}) };
+      if(Number(value.statusVersion||0)<2)migratedStatus.mental=400;
+      return { ...defaults, ...value, statusVersion:2, status:migratedStatus, map:{ ...defaults.map, ...(value.map || {}) }, conversations:{ ...defaults.conversations, ...(value.conversations || {}) } };
     } catch (_error) {
       return freshState();
     }

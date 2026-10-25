@@ -18,20 +18,21 @@
     { label:"상호작용 지점 3", x:39, y:55 }
   ];
   const coords=(point)=>`left:${point.x}%;top:${point.y}%`;
-  function stampMarkup(point, name, bubble="") {
+  function stampMarkup(point, name) {
     return `<div class="map-stamp" data-stamp style="${coords(point)}" data-name="${escapeHtml(name)}">${escapeHtml((name||"인장").slice(0,1))}</div>`;
   }
   function escapeHtml(value) { return String(value).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+  function isMine(item){const ownName=window.GHData.state.character?.name;return typeof item.mine==="boolean"?item.mine:item.name===ownName;}
   function renderSpeechBubbles(messages,point){
     const active=messages.filter((item)=>Date.now()-Number(item.createdAt||0)<5000);
     if(!active.length)return "";
     const left=Math.max(20,Math.min(80,point.x));
-    const bubbles=active.map((item)=>`<div class="stamp-bubble" data-bubble-id="${escapeHtml(item.id)}"><strong>${escapeHtml(item.name)}:</strong> ${escapeHtml(item.text)}</div>`).join("");
+    const bubbles=active.map((item)=>`<div class="stamp-bubble ${isMine(item)?"mine":"other"}" data-bubble-id="${escapeHtml(item.id)}"><strong>${escapeHtml(item.name)}:</strong> ${escapeHtml(item.text)}</div>`).join("");
     for(const item of active){const remaining=Math.max(0,5000-(Date.now()-Number(item.createdAt||0)));setTimeout(()=>{document.querySelectorAll("[data-bubble-id]").forEach((bubble)=>{if(bubble.dataset.bubbleId===String(item.id))bubble.remove();});},remaining);}
     return `<div class="stamp-bubble-stack" style="left:${left}%;top:${point.y-4}%">${bubbles}</div>`;
   }
   function renderSpeechHistory(messages){
-    const entries=messages.map((item)=>`<div class="map-speech"><span class="speech-name">${escapeHtml(item.name)}:</span>${escapeHtml(item.text)}</div>`).join("");
+    const entries=messages.map((item)=>`<div class="map-speech ${isMine(item)?"mine":"other"}"><span class="speech-name">${escapeHtml(item.name)}:</span>${escapeHtml(item.text)}</div>`).join("");
     return `<section class="speech-history" aria-label="말하기 내역"><h2>말하기 내역</h2><div class="speech-history-list" data-speech-history aria-live="polite">${entries||'<p class="speech-empty">아직 말하기 내역이 없어요.</p>'}</div></section>`;
   }
   function renderBoard(kind) {
@@ -64,7 +65,9 @@
     board.querySelector("[data-route]")?.remove();
     if(previous.x!==point.x||previous.y!==point.y){
       const route=document.createElementNS("http://www.w3.org/2000/svg","svg");route.setAttribute("class","map-route");route.setAttribute("viewBox","0 0 100 100");route.setAttribute("preserveAspectRatio","none");route.setAttribute("aria-hidden","true");route.dataset.route="";
-      const line=document.createElementNS("http://www.w3.org/2000/svg","line");line.setAttribute("x1",previous.x);line.setAttribute("y1",previous.y);line.setAttribute("x2",point.x);line.setAttribute("y2",point.y);line.setAttribute("class","map-route-line");route.append(line);board.insertBefore(route,stamp);
+      const waypoints=Array.isArray(point.routeVia)?point.routeVia:[];
+      const routePoints=[previous,...waypoints,point].filter((item)=>Number.isFinite(Number(item.x))&&Number.isFinite(Number(item.y)));
+      const polyline=document.createElementNS("http://www.w3.org/2000/svg","polyline");polyline.setAttribute("points",routePoints.map((item)=>`${item.x},${item.y}`).join(" "));polyline.setAttribute("class","map-route-line");route.append(polyline);board.insertBefore(route,stamp);
       const name=state.character?.name||"내 캐릭터";stamp.dataset.name=name;stamp.textContent=name.slice(0,1);
       requestAnimationFrame(()=>{stamp.style.left=`${point.x}%`;stamp.style.top=`${point.y}%`;});
       setTimeout(()=>route.remove(),1120);

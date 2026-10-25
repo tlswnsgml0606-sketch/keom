@@ -9,7 +9,7 @@
   </div>`).join("");
   function formBody() {
     return `<section class="section-block"><h2>인장</h2><div class="portrait-row"><img class="portrait-preview" data-portrait src="" alt="선택한 인장" hidden><div class="portrait-preview" data-default-portrait>기본 사진</div><div class="portrait-controls"><div class="choice-row"><button class="button-quiet" type="button" data-upload>사진 추가</button><button class="button-quiet" type="button" data-use-default>기본 사진</button></div><span class="hint" data-photo-label>사진을 추가하거나 기본 사진을 선택해 주세요.</span><input type="file" accept="image/*" data-photo-input hidden></div></div></section>
-      <section class="section-block"><h2>기본 정보</h2><div class="two-fields"><div class="field"><label for="character-name">이름</label><input id="character-name" name="name" required placeholder="이름 입력"></div><div class="field"><label for="character-height">키</label><input id="character-height" name="height" required inputmode="decimal" placeholder="키 입력"></div><div class="field"><label for="character-age">나이</label><input id="character-age" name="age" required inputmode="numeric" placeholder="나이 입력"></div></div></section>
+      <section class="section-block"><h2>기본 정보</h2><div class="two-fields"><div class="field"><label for="character-name">이름</label><input id="character-name" name="name" required pattern="[가-힣A-Za-z]+( [가-힣A-Za-z]+)*" title="한글과 영어만 입력할 수 있어요." placeholder="이름 입력"><span class="hint">한글과 영어만 입력할 수 있어요.</span></div><div class="field"><label for="character-height">키 (cm)</label><input id="character-height" name="height" required inputmode="numeric" pattern="[0-9]+" title="숫자만 입력할 수 있어요." placeholder="키 입력"><span class="hint">숫자만 입력할 수 있어요.</span></div><div class="field"><label for="character-age">나이</label><input id="character-age" name="age" required inputmode="numeric" pattern="[0-9]+" title="숫자만 입력할 수 있어요." placeholder="나이 입력"><span class="hint">숫자만 입력할 수 있어요.</span></div></div></section>
       <section class="section-block"><h2>직업 선택</h2><div class="choice-row"><button class="choice" type="button" data-job="퇴치" aria-pressed="false">퇴치</button><button class="choice" type="button" data-job="포획" aria-pressed="false">포획</button></div><input type="hidden" name="job"></section>
       <section class="section-block"><h2>무기 선택</h2><p class="hint" data-weapon-hint>직업을 먼저 선택해 주세요.</p><div class="choice-row weapon-set" data-weapons="퇴치" hidden><button class="choice" type="button" data-weapon="검">검</button><button class="choice" type="button" data-weapon="총">총</button><button class="choice" type="button" data-weapon="부적과 붓">부적과 붓</button></div><div class="choice-row weapon-set" data-weapons="포획" hidden><button class="choice" type="button" data-weapon="무당의 방울">무당의 방울</button></div><input type="hidden" name="weapon"></section>
       <section class="section-block"><h2>스탯 분배</h2><p class="points-remaining">남은 포인트 <b data-points-left>10</b> / 10</p><div class="stats-list">${statRows()}</div></section>
@@ -64,11 +64,14 @@
   }
   function validate(form) {
     if(!form.reportValidity())return {error:null};
+    const values=getValues(form);
+    if(!/^[가-힣A-Za-z]+(?: [가-힣A-Za-z]+)*$/.test(values.name))return {error:"이름은 한글과 영어만 입력할 수 있어요."};
+    if(!/^\d+$/.test(values.height)||!/^[0-9]+$/.test(values.age))return {error:"키와 나이는 숫자만 입력해 주세요."};
     if(!form.elements.job.value)return {error:"직업을 선택해 주세요."};
     if(!form.elements.weapon.value)return {error:"무기를 선택해 주세요."};
     const assigned=Object.values(currentStats(form)).reduce((a,b)=>a+b,0);
     if(assigned!==10)return {error:`스탯 포인트를 모두 분배해 주세요. (남은 포인트 ${10-assigned})`};
-    return {ok:true, values:getValues(form), stats:currentStats(form), portrait:form.dataset.portrait||null};
+    return {ok:true, values, stats:currentStats(form), portrait:form.dataset.portrait||null};
   }
   window.GHCharacter = { render, handleClick, handlePhoto, validate, updateStats, resizeImage:compressImage };
 })();

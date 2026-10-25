@@ -18,7 +18,7 @@
   function openDialog(title,html){const dialog=document.getElementById("message-dialog");document.getElementById("dialog-title").textContent=title;document.getElementById("dialog-body").innerHTML=html;dialog.showModal();}
   function showError(form,message){const el=form.querySelector("[data-form-error]");if(!el)return;el.textContent=message||"";el.hidden=!message;}
   function setPage(page){GHData.state.page=page;if(page==="전체맵")GHData.state.map.active="whole";if(page==="세부맵")GHData.state.map.active="detail";GHData.save();render();}
-  function addAreaMessage(form){const text=String(new FormData(form).get("message")||"").trim();if(!text)return;const state=GHData.state;const record={id:Date.now()+Math.random(),name:state.character.name,text,date:GHData.todayKey(),createdAt:Date.now()};state.areaMessages.push(record);GHData.addRecord("말하기",`${record.name}: ${text}`,record.date);render();const history=document.querySelector("[data-speech-history]");if(history)history.scrollTop=history.scrollHeight;document.querySelector('#area-say-form [name="message"]')?.focus();}
+  function addAreaMessage(form){const text=String(new FormData(form).get("message")||"").trim();if(!text)return;const state=GHData.state;const record={id:Date.now()+Math.random(),name:state.character.name,mine:true,text,date:GHData.todayKey(),createdAt:Date.now()};state.areaMessages.push(record);GHData.addRecord("말하기",`${record.name}: ${text}`,record.date);render();const history=document.querySelector("[data-speech-history]");if(history)history.scrollTop=history.scrollHeight;document.querySelector('#area-say-form [name="message"]')?.focus();}
   async function makeFullbody(form,input){
     const file=input.files?.[0];if(!file)return;if(!file.type.startsWith("image/")){toast("이미지 파일을 선택해 주세요.");return;}
     try{
@@ -29,9 +29,9 @@
     const authMode=event.target.closest("[data-auth-mode]");if(authMode){GHData.state.authMode=authMode.dataset.authMode;GHData.save();render();return;}
     if(event.target.closest("[data-logout]")){GHData.state.sessionActive=false;GHData.state.authMode="login";GHData.save();render();return;}
     if(event.target.closest("[data-withdraw]")){
-      if(!window.confirm("계정, 캐릭터, 기록, 맵 위치를 포함한 이 브라우저의 게임 데이터를 모두 삭제하고, 7일 동안 새 가입을 제한할까요?"))return;
-      GHAuth.rememberWithdrawal();GHAuth.startCooldown();GHData.clear();render();return;
+      openDialog("정말 탈퇴할까요?",'<p class="withdraw-note">(탈퇴시 데이터가 모두 삭제되고, 동일 기기로 가입이 7일동안 제한돼요.)</p><div class="dialog-actions"><button class="button-quiet" type="submit">취소</button><button class="button-primary danger-action" type="button" data-withdraw-confirm>탈퇴</button></div>');return;
     }
+    if(event.target.closest("[data-withdraw-confirm]")){GHAuth.rememberWithdrawal();GHAuth.startCooldown();GHData.clear();document.getElementById("message-dialog").close();render();return;}
     const pageButton=event.target.closest("[data-page]");if(pageButton){setPage(pageButton.dataset.page);return;}
     const board=event.target.closest("[data-map-board]");const mapPoint=event.target.closest("[data-map-point]");
     if(mapPoint&&board){GHMaps.move(mapPoint.dataset.mapPoint,Number(mapPoint.dataset.pointIndex),board);return;}
@@ -78,6 +78,7 @@
     if(event.target.matches("[data-fullbody-input]"))makeFullbody(event.target.closest("form"),event.target);
   }
   app.addEventListener("click",handleClick);
+  document.getElementById("message-dialog").addEventListener("click",handleClick);
   app.addEventListener("submit",handleSubmit);
   app.addEventListener("input",handleInput);
   app.addEventListener("change",handleChange);

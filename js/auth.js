@@ -30,8 +30,8 @@
       <div class="brand"><span class="brand-seal">鬼</span><h1>귀령학교</h1><span class="brand-hanja">鬼靈學校</span></div>
       <div class="form-title"><h2>${title}</h2><p>${login?"아이디와 비밀번호를 입력해 주세요.":"계정 정보를 입력해 주세요."}</p></div>
       <form class="auth-form" id="${login?"login-form":"signup-form"}" novalidate>
-        <div class="field"><label for="auth-id">아이디</label><input id="auth-id" name="username" autocomplete="username" required maxlength="32" placeholder="아이디 입력"></div>
-        <div class="field"><label for="auth-password">비밀번호</label><input id="auth-password" name="password" type="password" autocomplete="${login?"current-password":"new-password"}" required placeholder="${login?"비밀번호 입력":"테스트용 비밀번호 입력"}"></div>
+        <div class="field"><label for="auth-id">아이디</label><input id="auth-id" name="username" autocomplete="username" required maxlength="32" pattern="[A-Za-z0-9]+" title="영문과 숫자만 사용할 수 있고, 두 종류를 모두 포함해 주세요." placeholder="아이디 입력">${login?"":'<span class="hint">영문과 숫자를 함께 사용해 주세요. 다른 문자는 사용할 수 없어요.</span>'}</div>
+        <div class="field"><label for="auth-password">비밀번호</label><input id="auth-password" name="password" type="password" autocomplete="${login?"current-password":"new-password"}" required minlength="8" maxlength="16" placeholder="${login?"비밀번호 입력":"테스트용 비밀번호 입력"}">${login?"":'<span class="hint">8~16자, 영문·숫자·특수문자를 모두 포함해 주세요. abc, 123처럼 연속된 영문이나 숫자는 사용할 수 없어요. 아이디와 연속 3자 이상 겹치는 문자열도 사용할 수 없어요.</span>'}</div>
         ${!login?`<div class="field"><label for="auth-confirm">비밀번호 확인</label><input id="auth-confirm" name="confirm" type="password" autocomplete="new-password" required placeholder="비밀번호 다시 입력"></div><div class="field"><label for="auth-code">초대 코드</label><input id="auth-code" name="inviteCode" autocomplete="off" required minlength="7" maxlength="7" pattern="[A-Za-z]{7}" placeholder="영문 7자리 코드 입력"><span class="hint">배포받은 초대 코드를 입력해 주세요.</span></div>`:setupPassword?`<div class="field"><label for="auth-confirm">비밀번호 확인</label><input id="auth-confirm" name="confirm" type="password" autocomplete="new-password" required placeholder="새 테스트 비밀번호 다시 입력"></div><p class="hint">이전에 만든 시제품 계정이에요. 이번에 테스트용 비밀번호를 설정해 주세요.</p>`:""}
         <p class="form-error" data-form-error role="alert" hidden></p>
         <button class="button-primary" type="submit" ${!login&&locked?"disabled":""}>${login?"로그인":"가입하기"}</button>
@@ -40,6 +40,19 @@
       <button class="button-quiet auth-mode-toggle" type="button" data-auth-mode="${login?"signup":"login"}">${login?"새 계정 가입하기":"이미 계정이 있나요? 로그인"}</button>
       ${!login&&locked?`<p class="hint">이 브라우저에서는 ${Math.ceil(locked/DAY)}일 후 새 가입이 가능해요.</p>`:""}
     </main>`;
+  }
+  function hasSequence(password) {
+    const groups=password.toLowerCase().match(/[a-z]+|[0-9]+/g)||[];
+    return groups.some((group)=>{for(let i=0;i<=group.length-3;i++){const a=group.charCodeAt(i),b=group.charCodeAt(i+1),c=group.charCodeAt(i+2);if((b-a===1&&c-b===1)||(b-a===-1&&c-b===-1))return true;}return false;});
+  }
+  function passwordError(username,password) {
+    if(password.length<8||password.length>16)return "비밀번호는 8~16자로 입력해 주세요.";
+    const specialSymbol = /[^\p{L}\p{N}\s]/u.test(password);
+    if(!/[A-Za-z]/.test(password)||!/[0-9]/.test(password)||!specialSymbol)return "비밀번호에 영문, 숫자, 특수문자를 모두 포함해 주세요.";
+    if(hasSequence(password))return "비밀번호에는 abc나 123처럼 연속된 영문·숫자를 사용할 수 없어요.";
+    const id=username.toLowerCase();
+    for(let i=0;i<=id.length-3;i++)if(password.toLowerCase().includes(id.slice(i,i+3)))return "비밀번호는 아이디와 연속 3자 이상 겹칠 수 없어요.";
+    return "";
   }
   async function submit(form) {
     const fields = new FormData(form);
@@ -51,6 +64,7 @@
       if (!account || account.username!==username) return {error:"아이디 또는 비밀번호가 맞지 않아요."};
       if (!account.passwordHash || !account.passwordSalt) {
         if (String(fields.get("confirm")||"")!==password) return {error:"비밀번호 확인이 일치하지 않아요."};
+        const policyError=passwordError(username,password);if(policyError)return {error:policyError};
         const salt=crypto.getRandomValues(new Uint8Array(16));
         account.passwordSalt=btoa(String.fromCharCode(...salt));account.passwordHash=await hashPassword(password,salt);
         window.GHData.state.sessionActive=true;window.GHData.state.authMode="signup";window.GHData.save();return {ok:true,login:true};
@@ -64,6 +78,8 @@
     if (!confirm || !inviteCode) return {error:"아이디, 비밀번호, 비밀번호 확인, 초대 코드를 모두 입력해 주세요."};
     if (cooldownRemaining()) return {error:"이 브라우저에서는 탈퇴 후 7일 동안 새로 가입할 수 없어요."};
     if (window.GHData.state.account) return {error:"이미 이 브라우저에 계정이 있어요. 로그인해 주세요."};
+    if(!/^[A-Za-z0-9]+$/.test(username)||!/[A-Za-z]/.test(username)||!/[0-9]/.test(username))return {error:"아이디는 영문과 숫자를 모두 포함하고, 다른 문자는 사용할 수 없어요."};
+    const policyError=passwordError(username,password);if(policyError)return {error:policyError};
     if (password!==confirm) return {error:"비밀번호 확인이 일치하지 않아요."};
     if (!/^[A-Za-z]{7}$/.test(inviteCode)) return {error:"초대 코드는 영문 대소문자 7자리로 입력해 주세요."};
     const salt=crypto.getRandomValues(new Uint8Array(16));
