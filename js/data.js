@@ -21,7 +21,9 @@
       active: "whole",
       wholePoint: 0,
       detailPoint: 0,
-      currentPoint: "이동 지점 1"
+      roomPoint: 0,
+      detailScene: "room",
+      currentPoint: "침대 옆"
     },
     records: [],
     areaMessages: [],

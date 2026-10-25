@@ -15,7 +15,7 @@
     app.innerHTML=`<div class="app-shell">${content}</div>`;
   }
   function toast(message){const old=document.querySelector(".toast");old?.remove();const el=document.createElement("div");el.className="toast";el.setAttribute("role","status");el.textContent=message;document.body.append(el);setTimeout(()=>el.remove(),2600);}
-  function openDialog(title,html){const dialog=document.getElementById("message-dialog");document.getElementById("dialog-title").textContent=title;document.getElementById("dialog-body").innerHTML=html;dialog.showModal();}
+  function openDialog(title,html){const dialog=document.getElementById("message-dialog");if(dialog.open)dialog.close();document.getElementById("dialog-title").textContent=title;document.getElementById("dialog-body").innerHTML=html;dialog.showModal();}
   function showError(form,message){const el=form.querySelector("[data-form-error]");if(!el)return;el.textContent=message||"";el.hidden=!message;}
   function setPage(page){GHData.state.page=page;if(page==="전체맵")GHData.state.map.active="whole";if(page==="세부맵")GHData.state.map.active="detail";GHData.save();render();}
   function addAreaMessage(form){const text=String(new FormData(form).get("message")||"").trim();if(!text)return;const state=GHData.state;const record={id:Date.now()+Math.random(),name:state.character.name,mine:true,text,date:GHData.todayKey(),createdAt:Date.now()};state.areaMessages.push(record);GHData.addRecord("말하기",`${record.name}: ${text}`,record.date);render();const history=document.querySelector("[data-speech-history]");if(history)history.scrollTop=history.scrollHeight;document.querySelector('#area-say-form [name="message"]')?.focus();}
@@ -35,7 +35,13 @@
     const pageButton=event.target.closest("[data-page]");if(pageButton){setPage(pageButton.dataset.page);return;}
     const board=event.target.closest("[data-map-board]");const mapPoint=event.target.closest("[data-map-point]");
     if(mapPoint&&board){GHMaps.move(mapPoint.dataset.mapPoint,Number(mapPoint.dataset.pointIndex),board);return;}
-    const redPoint=event.target.closest("[data-interaction-point]");if(redPoint){GHMaps.showInteraction(Number(redPoint.dataset.interactionPoint));return;}
+    const redPoint=event.target.closest("[data-interaction-point]");if(redPoint){GHMaps.showInteraction(Number(redPoint.dataset.interactionPoint),redPoint.closest("[data-map-board]")?.dataset.scene);return;}
+    if(event.target.closest("[data-dialog-close]")){document.getElementById("message-dialog").close();return;}
+    if(event.target.closest("[data-schedule-event]")){GHMaps.showEventTeam();return;}
+    if(event.target.closest("[data-team-add]")){GHMaps.showTeamLetter();return;}
+    if(event.target.closest("[data-team-back]")){GHMaps.showEventTeam();return;}
+    if(event.target.closest("[data-sleep-confirm]")){document.getElementById("message-dialog").close();toast("잠자리에 들었어요. 피로 회복 수치는 규칙 확정 후 적용할게요.");return;}
+    if(event.target.closest("[data-team-letter-send]")){toast("편지 화면 시안이에요. 테스트 계정과 연결한 뒤 보내기 기능을 점검할게요.");return;}
     const jobButton=event.target.closest("[data-job]");if(jobButton){const form=event.target.closest("form");if(form)GHCharacter.handleClick(form,event);return;}
     if(event.target.closest("[data-stat-change],[data-weapon],[data-upload],[data-use-default]")){const form=event.target.closest("form");if(form)GHCharacter.handleClick(form,event);return;}
     const filter=event.target.closest("[data-chat-filter]");if(filter){GHData.state.chatFilter=filter.dataset.chatFilter;GHData.save();render();return;}
@@ -69,6 +75,7 @@
     if(form.id==="area-say-form"){event.preventDefault();addAreaMessage(form);return;}
   }
   function handleInput(event){
+    if(event.target.matches(".letter-body")){const counter=event.target.closest(".team-letter-paper")?.querySelector(".letter-limit span");if(counter)counter.textContent=`${event.target.value.length} / 500`;}
     if(event.target.id==="record-search"){
       const query=event.target.value.trim().toLocaleLowerCase();document.querySelectorAll("#record-list .record-group").forEach((group)=>{let shown=0;group.querySelectorAll(".record-line").forEach((line)=>{const match=line.textContent.toLocaleLowerCase().includes(query);line.hidden=!match;if(match)shown++;});group.hidden=shown===0;});
     }

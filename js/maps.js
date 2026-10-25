@@ -18,6 +18,16 @@
     { label:"상호작용 지점 2", x:52, y:63 },
     { label:"상호작용 지점 3", x:39, y:55 }
   ];
+  const roomBlue = [
+    { label:"침대 옆", x:42, y:57 },
+    { label:"책상 앞", x:70, y:65 }
+  ];
+  const roomRed = [
+    { label:"달력 열기", x:62, y:31, action:"calendar" },
+    { label:"침대에서 자기", x:27, y:49, action:"sleep" },
+    { label:"문 밖으로 나가기", x:51, y:86, action:"exit-room" }
+  ];
+  const outsideRed = [...detailRed,{label:"내 방으로 들어가기",x:82,y:20,action:"enter-room"}];
   const REFERENCE_MOVE_MS = 1120;
   const activeMoves = new WeakMap();
   const coords=(point)=>`left:${point.x}%;top:${point.y}%`;
@@ -39,28 +49,32 @@
     return `<section class="speech-history" aria-label="말하기 내역"><h2>말하기 내역</h2><div class="speech-history-list" data-speech-history aria-live="polite">${entries||'<p class="speech-empty">아직 말하기 내역이 없어요.</p>'}</div></section>`;
   }
   function renderBoard(kind) {
-    const state=window.GHData.state;const isWhole=kind==="whole";const points=isWhole?wholePoints:detailBlue;const active=Number(isWhole?state.map.wholePoint:state.map.detailPoint)||0;
+    const state=window.GHData.state;const isWhole=kind==="whole";const scene=isWhole?"whole":state.map.detailScene||"room";const isRoom=scene==="room";const points=isWhole?wholePoints:(isRoom?roomBlue:detailBlue);const active=Number(isWhole?state.map.wholePoint:(isRoom?state.map.roomPoint:state.map.detailPoint))||0;
     const marker=points[Math.min(active,points.length-1)];const name=state.character?.name||"내 캐릭터";const messages=state.areaMessages||[];
     const moveButtons=points.map((p,index)=>`<button class="map-point blue" type="button" data-map-point="${kind}" data-point-index="${index}" style="${coords(p)}" aria-label="${p.label}로 이동"><span class="map-dot"></span><span class="map-point-label">${p.label}</span></button>`).join("");
-    const redButtons=isWhole?"":detailRed.map((p,index)=>`<button class="map-point red" type="button" data-interaction-point="${index}" style="${coords(p)}" aria-label="${p.label} 설명 보기"><span class="map-dot"></span><span class="map-point-label">${p.label}</span></button>`).join("");
-    return `<div class="map-board" data-map-board="${kind}" aria-label="${isWhole?"전체맵":"세부맵"} 임시 점 이동판">
-      <span class="map-hint">지도 배경은 추후 설정</span><span class="map-location-label">${isWhole?"전체맵":"세부맵"}</span>
+    const interactionPoints=isWhole?[]:(isRoom?roomRed:outsideRed);
+    const redButtons=interactionPoints.map((p,index)=>`<button class="map-point red" type="button" data-interaction-point="${index}" style="${coords(p)}" aria-label="${p.label}"><span class="map-dot"></span><span class="map-point-label">${p.label}</span></button>`).join("");
+    const roomArt=isRoom?`<div class="room-art" aria-hidden="true"><div class="room-back-wall"></div><div class="room-bed"><span>침대</span></div><div class="room-desk"><span>책상</span></div><div class="room-calendar">달력</div><div class="room-door"><span>문</span></div></div>`:"";
+    const roomClass=isRoom?" room-interior":"";const locationLabel=isWhole?"전체맵":(isRoom?"내방":"방 밖 · 임시 맵");
+    return `<div class="map-board${roomClass}" data-map-board="${kind}" data-scene="${scene}" aria-label="${locationLabel}">
+      ${roomArt}<span class="map-hint">${isWhole?"임시 전체맵":"파란 점은 이동, 빨간 점은 상호작용"}</span><span class="map-location-label">${locationLabel}</span>
       ${moveButtons}${redButtons}${stampMarkup(marker,name)}${isWhole?"":renderSpeechBubbles(messages,marker)}
     </div>
-    <div class="map-legend"><span><i class="legend-dot blue"></i>파란 점을 눌러 이동</span>${isWhole?"":"<span><i class=\"legend-dot red\"></i>빨간 점을 눌러 설명 확인</span>"}</div>`;
+    <div class="map-legend"><span><i class="legend-dot blue"></i>파란 점을 눌러 이동</span>${isWhole?"":"<span><i class=\"legend-dot red\"></i>빨간 점을 눌러 상호작용</span>"}</div>`;
   }
   function render(kind=window.GHData.state.map.active||"whole") {
     window.GHData.state.map.active=kind;window.GHData.save();
-    const title=kind==="whole"?"전체맵":"세부맵";
+    const title=kind==="whole"?"전체맵":(window.GHData.state.map.detailScene==="room"?"내방":"방 밖 · 임시 맵");
+    const note=kind==="whole"?"전체 학교 지도는 추후 설정할 예정이에요.":(window.GHData.state.map.detailScene==="room"?"달력·침대·문은 빨간 점으로, 침대와 책상 근처는 파란 점으로 상호작용해요.":"임시 외부 맵이에요. 빨간 점을 눌러 내 방으로 돌아올 수 있어요.");
     const detailSpeech=kind==="detail"?`${renderSpeechHistory(window.GHData.state.areaMessages||[])}<section class="section-block"><h2>말하기</h2><form class="say-form" id="area-say-form"><input class="text-entry" name="message" maxlength="500" placeholder="이 세부맵에 있는 사람에게 말하기" required><button class="button-primary" type="submit">보내기</button></form></section>`:"";
     return `<div class="game-screen"><div class="status-bar">${window.GHApp.statusMarkup()}</div>
       <header class="screen-heading"><h1>${title}</h1>${kind==="detail"?"<small>현재 세부맵</small>":"<small>지도 배경 미정</small>"}</header>
-      <main class="screen-scroll"><p class="hint map-page-hint">점 이동을 확인할 수 있도록 임시 점만 배치했어요. 지도 그림과 장소 정보는 비워뒀어요.</p>${renderBoard(kind)}${detailSpeech}</main>
+      <main class="screen-scroll"><p class="hint map-page-hint">${note}</p>${renderBoard(kind)}${detailSpeech}</main>
       ${window.GHApp.navMarkup(kind==="whole"?"전체맵":"세부맵")}</div>`;
   }
   function move(kind,index,board) {
-    const points=kind==="whole"?wholePoints:detailBlue;const point=points[index];if(!point)return;
-    const state=window.GHData.state;const key=kind==="whole"?"wholePoint":"detailPoint";
+    const state=window.GHData.state;const scene=board.dataset.scene;const points=kind==="whole"?wholePoints:(scene==="room"?roomBlue:detailBlue);const point=points[index];if(!point)return;
+    const key=kind==="whole"?"wholePoint":(scene==="room"?"roomPoint":"detailPoint");
     const stamp=board.querySelector("[data-stamp]");if(!stamp)return;
     const boardRect=board.getBoundingClientRect();const stampRect=stamp.getBoundingClientRect();
     const previous={x:((stampRect.left+stampRect.width/2-boardRect.left)/boardRect.width)*100,y:((stampRect.top+stampRect.height/2-boardRect.top)/boardRect.height)*100};
@@ -97,7 +111,27 @@
     activeMoves.set(stamp,requestAnimationFrame(frame));
   }
   function showInteraction(index) {
-    window.GHApp.openDialog("상호작용 지점",`<p>상호작용 지점 ${index+1}</p><p>물체와 설명은 맵이 정해진 뒤 추가할게요.</p>`);
+    const state=window.GHData.state;const scene=state.map.detailScene||"room";const point=(scene==="room"?roomRed:outsideRed)[index];if(!point)return;
+    if(point.action==="calendar"){showSchedule();return;}
+    if(point.action==="sleep"){
+      window.GHApp.openDialog("침대에서 자기",`<p>침대에서 잘까요?</p><p class="hint">잠자기 후 피로 회복 수치는 아직 정해지지 않아, 확인 전까지 상태 수치는 바뀌지 않아요.</p><div class="dialog-actions"><button class="button-quiet" type="button" data-dialog-close>아니요</button><button class="button-primary" type="button" data-sleep-confirm>잠들기</button></div>`);return;
+    }
+    if(point.action==="exit-room"){changeScene("outside");return;}
+    if(point.action==="enter-room"){changeScene("room");return;}
+    window.GHApp.openDialog("상호작용 지점",`<p>${escapeHtml(point.label)}</p><p>물체 설명은 맵 설정이 정해진 뒤 추가할게요.</p>`);
   }
-  window.GHMaps={render,move,showInteraction,wholePoints,detailBlue,detailRed};
+  function changeScene(scene){const state=window.GHData.state;state.map.detailScene=scene;if(scene==="outside")state.map.detailPoint=0;state.map.currentPoint=scene==="room"?roomBlue[Number(state.map.roomPoint)||0].label:detailBlue[Number(state.map.detailPoint)||0].label;state.page="세부맵";window.GHData.save();window.GHApp.render();}
+  function showSchedule(){
+    const days=["27","28","29","30",...Array.from({length:31},(_,i)=>String(i+1))];
+    const cells=days.map((day,index)=>{const isCurrent=index>=4;const selected=isCurrent&&day==="25";return `<span class="schedule-day${isCurrent?"":" muted"}${selected?" selected":""}">${day}${selected?'<i class="schedule-event-dot"></i>':""}</span>`;}).join("");
+    window.GHApp.openDialog("일정표",`<div class="schedule-month"><button type="button" aria-label="이전 달" disabled>‹</button><strong>2026년 10월</strong><button type="button" aria-label="다음 달" disabled>›</button></div><div class="schedule-grid">${["일","월","화","수","목","금","토"].map((day)=>`<span class="weekday">${day}</span>`).join("")}${cells}</div><div class="schedule-date-label">10월 25일 일요일</div><button type="button" class="schedule-event" data-schedule-event><b>10:00</b><span><strong>임시 이벤트</strong><small>시안용 일정 · 눌러서 팀원 보기</small></span></button>`);
+  }
+  function showEventTeam(){
+    window.GHApp.openDialog("임시 이벤트",`<p>2026년 10월 25일 10:00</p><div class="schedule-team-head"><strong>팀원 목록</strong><button class="plus-button" type="button" data-team-add aria-label="팀원 추가">＋</button></div><p class="hint">현재 팀원이 없어요.</p>`);
+  }
+  function showTeamLetter(){
+    const sender=window.GHData.state.character?.name||"내 캐릭터";
+    window.GHApp.openDialog("편지 쓰기",`<div class="team-letter-paper"><div class="letter-date">2026년 10월 25일</div><p class="letter-line"><span>받는 사람</span><input class="letter-recipient" placeholder="캐릭터 이름 검색"></p><p class="letter-sender">보내는 사람　${escapeHtml(sender)}</p><p class="letter-subject">임시 이벤트 팀 제의</p><textarea class="letter-body" maxlength="500" placeholder="하고 싶은 말을 편지지에 적어주세요."></textarea><div class="letter-limit">기본 500자 · 편지 세트 보유 시 1,000자 <span>0 / 500</span></div></div><div class="dialog-actions"><button class="button-quiet" type="button" data-team-back>돌아가기</button><button class="button-primary" type="button" data-team-letter-send>편지 보내기</button></div>`);
+  }
+  window.GHMaps={render,move,showInteraction,showEventTeam,showTeamLetter,changeScene,wholePoints,detailBlue,detailRed,roomBlue,roomRed};
 })();
