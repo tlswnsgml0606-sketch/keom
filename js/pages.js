@@ -1,0 +1,37 @@
+(function () {
+  "use strict";
+  const esc=(value)=>String(value??"").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  function renderRecords() {
+    const state=window.GHData.state;const groups=new Map();
+    [...state.records].reverse().forEach((item)=>{if(!groups.has(item.date))groups.set(item.date,[]);groups.get(item.date).push(item);});
+    const entries=[...groups].map(([date,items])=>`<section class="record-group"><div class="date-heading">${esc(date)}</div>${items.map((item)=>`<div class="record-line"><span class="record-kind">${esc(item.type)}</span><span class="record-text">${esc(item.text)}</span></div>`).join("")}</section>`).join("");
+    return `<div class="game-screen"><div class="status-bar">${window.GHApp.statusMarkup()}<span class="status-extra">학교</span></div><header class="screen-heading"><h1>기록</h1></header><main class="screen-scroll"><input class="search-box record-search" id="record-search" placeholder="기록 검색"><div id="record-list">${entries||'<div class="empty-state">기록이 없습니다.</div>'}</div></main>${window.GHApp.navMarkup("기록")}</div>`;
+  }
+  function renderChat() {
+    const state=window.GHData.state;const category=state.chatFilter||"대화";const messages=state.conversations[category]||[];
+    const contactMarkup=messages.length?messages.map((m)=>`<button class="conversation-row" type="button"><i class="avatar">${esc((m.with||"?").slice(0,1))}</i><span class="conversation-name">${esc(m.with||"대화")}</span></button>`).join(""):'<div class="empty-state">아직 대화가 없습니다.</div>';
+    const body=messages.length?`<div class="chat-feed">${messages.map((m)=>`<div class="chat-message ${m.mine?"mine":""}"><span class="chat-author">${esc(m.author||"")}</span>${esc(m.text)}</div>`).join("")}</div>`:'<div class="empty-state">대화 상대가 생기면 여기에 표시됩니다.</div>';
+    return `<div class="game-screen"><div class="status-bar">${window.GHApp.statusMarkup()}<span class="status-extra">학교</span></div><header class="screen-heading"><h1>채팅</h1><button class="button-quiet" type="button" data-chat-search>⌕ 검색</button></header><main class="screen-scroll"><div class="segmented"><button class="segment" type="button" data-chat-filter="대화" aria-pressed="${category==="대화"}">대화</button><button class="segment" type="button" data-chat-filter="사담" aria-pressed="${category==="사담"}">사담</button></div><div class="conversation-layout"><aside class="conversation-list" aria-label="대화 목록">${contactMarkup}</aside><section class="conversation-pane" aria-label="대화 내용">${body}</section></div></main>${window.GHApp.navMarkup("채팅")}</div>`;
+  }
+  function renderAlerts() {
+    const state=window.GHData.state;const filter=state.alertFilter||"전체";const all=state.alerts||[];const visible=filter==="전체"?all:all.filter((item)=>item.type===filter);
+    const filters=["전체","편지","채팅","그 외"];
+    return `<div class="game-screen"><div class="status-bar">${window.GHApp.statusMarkup()}<span class="status-extra">학교</span></div><header class="screen-heading"><h1>알림</h1>${window.GHData.unreadCount()?`<span class="unread-label">${window.GHData.unreadCount()}</span>`:""}</header><main class="screen-scroll"><div class="alert-tabs">${filters.map((item)=>`<button type="button" class="alert-tab" data-alert-filter="${item}" aria-pressed="${filter===item}">${item}</button>`).join("")}</div><div class="alert-list">${visible.length?visible.map((item)=>`<button class="alert-line" data-alert-id="${item.id}" type="button"><span class="alert-type">${esc(item.type)}</span><span><strong>${esc(item.title)}</strong><br><span class="hint">${esc(item.text)}</span></span>${item.read?"":'<i class="unread-dot" aria-label="읽지 않음"></i>'}</button>`).join(""):'<div class="empty-state">새 알림이 없습니다.</div>'}</div></main>${window.GHApp.navMarkup("알림")}</div>`;
+  }
+  function renderAccount() {
+    const state=window.GHData.state;const character=state.character;const account=state.account;
+    if(!character)return `<div class="game-screen"><div class="status-bar">${window.GHApp.statusMarkup()}<span class="status-extra">학교</span></div><header class="screen-heading"><h1>계정</h1></header><main class="screen-scroll"><div class="empty-state">캐릭터 정보를 먼저 입력해 주세요.</div></main>${window.GHApp.navMarkup("계정")}</div>`;
+    const statMarkup=Object.entries(character.stats||{}).map(([name,value])=>`<details class="account-stat"><summary>${esc(name)} <strong>${Number(value)||0}</strong></summary><p class="hint">${esc(window.GHData.statEffects[name]||"")}</p></details>`).join("");
+    const codes=state.inviteCodes||[];
+    const fullbody=character.fullbodyImage?`<img class="fullbody-preview" src="${character.fullbodyImage}" alt="전신 이미지">`:'<div class="fullbody-placeholder">전신 이미지</div>';
+    return `<div class="game-screen"><div class="status-bar">${window.GHApp.statusMarkup()}<span class="status-extra">학교</span></div><header class="screen-heading"><h1>계정</h1></header><main class="screen-scroll account-scroll">
+      <section class="account-head">${character.portrait?`<img class="portrait-preview account-portrait" src="${character.portrait}" alt="인장">`:'<div class="portrait-preview account-default-portrait">인장</div>'}<div><div class="account-name">${esc(character.name)}</div><div class="account-description">${esc(character.job)} · ${esc(character.weapon)}</div></div><button class="button-quiet account-action" type="button" data-account-settings>내 프로필</button></section>
+      <section class="account-section"><h2>스탯과 특성</h2><div class="account-stat-list">${statMarkup}</div></section>
+      <section class="account-section"><h2>자기소개</h2><div class="self-intro-grid">${fullbody}<div class="intro-copy">${esc(character.introduction||"자기소개가 없습니다.")}<label class="button-quiet upload-fullbody">전신 이미지 추가<input type="file" accept="image/*" data-fullbody-input hidden></label></div></div></section>
+      <section class="account-section"><details class="event-progress"><summary><span><strong>이벤트 진행도</strong><small>진행 중인 이벤트 · 진행도</small></span><span class="progress-track"><span class="progress-fill"></span></span><span class="hint">눌러서 이전 이벤트 보기</span></summary><div class="past-events"><strong>이전에 했던 이벤트</strong>${state.pastEvents.length?state.pastEvents.map((item)=>`<span>${esc(item)}</span>`).join(""):'<span class="hint">기록된 이벤트가 없습니다.</span>'}</div></details></section>
+      <section class="account-section"><h2>칭호</h2><span class="hint">현재 칭호가 없습니다.</span></section>
+      <section class="account-section"><h2>내 계정</h2><div class="account-description">아이디 · ${esc(account?.username||"")}</div><button class="button-quiet" type="button" data-account-settings>계정 설정</button><div class="invite-row"><span class="hint">입학 추천서 (${codes.length}/5)</span><button class="button-quiet" type="button" data-generate-code ${codes.length>=5?"disabled":""}>코드 만들기</button></div>${codes.map((code)=>`<div class="invite-row"><code class="invite-code">${esc(code)}</code><button class="button-quiet" type="button" data-copy-code="${esc(code)}">복사</button></div>`).join("")}</section>
+    </main>${window.GHApp.navMarkup("계정")}</div>`;
+  }
+  window.GHPages={renderRecords,renderChat,renderAlerts,renderAccount};
+})();
