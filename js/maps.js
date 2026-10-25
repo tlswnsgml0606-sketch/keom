@@ -23,9 +23,9 @@
     { label:"책상 앞", x:70, y:65 }
   ];
   const roomRed = [
-    { label:"달력 열기", x:62, y:31, action:"calendar" },
+    { label:"달력 열기", x:75, y:24, action:"calendar" },
     { label:"침대에서 자기", x:27, y:49, action:"sleep" },
-    { label:"나가기", x:64, y:75, action:"exit-room" }
+    { label:"나가기", x:51, y:86, action:"exit-room", labelPosition:"above" }
   ];
   const outsideRed = [...detailRed,{label:"내 방으로 들어가기",x:82,y:20,action:"enter-room"}];
   const REFERENCE_MOVE_MS = 1120;
@@ -53,7 +53,7 @@
     const marker=points[Math.min(active,points.length-1)];const name=state.character?.name||"내 캐릭터";const messages=state.areaMessages||[];
     const moveButtons=points.map((p,index)=>`<button class="map-point blue" type="button" data-map-point="${kind}" data-point-index="${index}" style="${coords(p)}" aria-label="${p.label}로 이동"><span class="map-dot"></span><span class="map-point-label">${p.label}</span></button>`).join("");
     const interactionPoints=isWhole?[]:(isRoom?roomRed:outsideRed);
-    const redButtons=interactionPoints.map((p,index)=>`<button class="map-point red" type="button" data-interaction-point="${index}" style="${coords(p)}" aria-label="${p.label}"><span class="map-dot"></span><span class="map-point-label">${p.label}</span></button>`).join("");
+    const redButtons=interactionPoints.map((p,index)=>`<button class="map-point red${p.labelPosition==="above"?" label-above":""}" type="button" data-interaction-point="${index}" style="${coords(p)}" aria-label="${p.label}"><span class="map-dot"></span><span class="map-point-label">${p.label}</span></button>`).join("");
     const roomArt=isRoom?`<div class="room-art" aria-hidden="true"><div class="room-back-wall"></div><div class="room-bed"><span>침대</span></div><div class="room-desk"><span>책상</span></div><div class="room-calendar">달력</div><div class="room-door"><span>문</span></div></div>`:"";
     const roomClass=isRoom?" room-interior":"";const locationLabel=isWhole?"전체맵":(isRoom?"내방":"방 밖 · 임시 맵");
     return `<div class="map-board${roomClass}" data-map-board="${kind}" data-scene="${scene}" aria-label="${locationLabel}">
