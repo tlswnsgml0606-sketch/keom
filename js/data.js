@@ -11,8 +11,11 @@
   };
   const freshState = () => ({
     account: null,
+    sessionActive: true,
+    authMode: "signup",
     character: null,
     page: "",
+    status: { fatigue: 100, life: 100, mental: 100 },
     map: {
       active: "whole",
       wholePoint: 0,
@@ -32,7 +35,8 @@
     try {
       const value = JSON.parse(localStorage.getItem(KEY) || "null");
       if (!value || typeof value !== "object") return freshState();
-      return { ...freshState(), ...value, map:{ ...freshState().map, ...(value.map || {}) }, conversations:{ ...freshState().conversations, ...(value.conversations || {}) } };
+      const defaults=freshState();
+      return { ...defaults, ...value, status:{ ...defaults.status, ...(value.status || {}) }, map:{ ...defaults.map, ...(value.map || {}) }, conversations:{ ...defaults.conversations, ...(value.conversations || {}) } };
     } catch (_error) {
       return freshState();
     }
@@ -40,6 +44,10 @@
   let state = load();
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(state)); return true; }
+    catch (_error) { return false; }
+  }
+  function clear() {
+    try { localStorage.removeItem(KEY); state = freshState(); return true; }
     catch (_error) { return false; }
   }
   function setState(next) { state = next; save(); }
@@ -65,5 +73,5 @@
     save();
   }
   function unreadCount() { return state.alerts.filter((item)=>!item.read).length; }
-  window.GHData = { KEY, alphabet, statEffects, freshState, load, save, get state(){return state;}, setState, todayKey, generateCode, addRecord, addAlert, unreadCount };
+  window.GHData = { KEY, alphabet, statEffects, freshState, load, save, clear, get state(){return state;}, setState, todayKey, generateCode, addRecord, addAlert, unreadCount };
 })();

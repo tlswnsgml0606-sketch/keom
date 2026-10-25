@@ -2,13 +2,13 @@
   "use strict";
   const app=document.getElementById("app");
   const navItems=[["전체맵","⌖"],["세부맵","⌂"],["기록","≡"],["채팅","▤"],["알림","◉"],["계정","○"]];
-  function statusMarkup(){return `<span>피로 —/100</span><span>생명 —/100</span><span>정신력 —/400</span>`;}
+  function statusMarkup(){const status=GHData.state.status;return `<span>피로 ${Number(status.fatigue)||0}/100</span><span>생명 ${Number(status.life)||0}/100</span><span>정신력 ${Number(status.mental)||0}/400</span>`;}
   function navMarkup(active){
     return `<nav class="bottom-nav" aria-label="주 메뉴">${navItems.map(([label,glyph])=>`<button class="nav-button" type="button" data-page="${label}" aria-current="${active===label?"page":"false"}"><span class="nav-icon">${glyph}${label==="알림"&&GHData.unreadCount()?`<i class="nav-badge">${GHData.unreadCount()}</i>`:""}</span>${label}</button>`).join("")}</nav>`;
   }
   function render(){
     const state=GHData.state;
-    if(!state.account){app.innerHTML=`<div class="app-shell">${GHAuth.render()}</div>`;return;}
+    if(!state.account||state.sessionActive===false){app.innerHTML=`<div class="app-shell">${GHAuth.render()}</div>`;return;}
     if(!state.character){app.innerHTML=`<div class="app-shell">${GHCharacter.render()}</div>`;return;}
     const page=state.page||"전체맵";
     const content=page==="전체맵"?GHMaps.render("whole"):page==="세부맵"?GHMaps.render("detail"):page==="기록"?GHPages.renderRecords():page==="채팅"?GHPages.renderChat():page==="알림"?GHPages.renderAlerts():GHPages.renderAccount();
@@ -18,7 +18,7 @@
   function openDialog(title,html){const dialog=document.getElementById("message-dialog");document.getElementById("dialog-title").textContent=title;document.getElementById("dialog-body").innerHTML=html;dialog.showModal();}
   function showError(form,message){const el=form.querySelector("[data-form-error]");if(!el)return;el.textContent=message||"";el.hidden=!message;}
   function setPage(page){GHData.state.page=page;if(page==="전체맵")GHData.state.map.active="whole";if(page==="세부맵")GHData.state.map.active="detail";GHData.save();render();}
-  function addAreaMessage(form){const text=String(new FormData(form).get("message")||"").trim();if(!text)return;const state=GHData.state;const record={id:Date.now()+Math.random(),name:state.character.name,text,date:GHData.todayKey(),createdAt:Date.now()};state.areaMessages.push(record);GHData.addRecord("말하기",`${record.name}: ${text}`,record.date);render();}
+  function addAreaMessage(form){const text=String(new FormData(form).get("message")||"").trim();if(!text)return;const state=GHData.state;const record={id:Date.now()+Math.random(),name:state.character.name,text,date:GHData.todayKey(),createdAt:Date.now()};state.areaMessages.push(record);GHData.addRecord("말하기",`${record.name}: ${text}`,record.date);render();const history=document.querySelector("[data-speech-history]");if(history)history.scrollTop=history.scrollHeight;document.querySelector('#area-say-form [name="message"]')?.focus();}
   async function makeFullbody(form,input){
     const file=input.files?.[0];if(!file)return;if(!file.type.startsWith("image/")){toast("이미지 파일을 선택해 주세요.");return;}
     try{
@@ -26,6 +26,12 @@
     }catch(_error){toast("이미지를 불러오지 못했어요.");}
   }
   function handleClick(event){
+    const authMode=event.target.closest("[data-auth-mode]");if(authMode){GHData.state.authMode=authMode.dataset.authMode;GHData.save();render();return;}
+    if(event.target.closest("[data-logout]")){GHData.state.sessionActive=false;GHData.state.authMode="login";GHData.save();render();return;}
+    if(event.target.closest("[data-withdraw]")){
+      if(!window.confirm("계정, 캐릭터, 기록, 맵 위치를 포함한 이 브라우저의 게임 데이터를 모두 삭제하고, 7일 동안 새 가입을 제한할까요?"))return;
+      GHAuth.rememberWithdrawal();GHAuth.startCooldown();GHData.clear();render();return;
+    }
     const pageButton=event.target.closest("[data-page]");if(pageButton){setPage(pageButton.dataset.page);return;}
     const board=event.target.closest("[data-map-board]");const mapPoint=event.target.closest("[data-map-point]");
     if(mapPoint&&board){GHMaps.move(mapPoint.dataset.mapPoint,Number(mapPoint.dataset.pointIndex),board);return;}
@@ -51,7 +57,10 @@
   function handleSubmit(event){
     const form=event.target;
     if(form.id==="signup-form"){
-      event.preventDefault();const result=GHAuth.submit(form);if(result.error){showError(form,result.error);return;}GHData.state.page="캐릭터 설정";GHData.save();render();return;
+      event.preventDefault();GHAuth.submit(form).then((result)=>{if(result.error){showError(form,result.error);return;}GHData.state.page=result.login?(GHData.state.character?GHData.state.page||"전체맵":"캐릭터 설정"):"캐릭터 설정";GHData.save();render();}).catch((error)=>showError(form,error.message||"로그인 정보를 확인해 주세요."));return;
+    }
+    if(form.id==="login-form"){
+      event.preventDefault();GHAuth.submit(form).then((result)=>{if(result.error){showError(form,result.error);return;}GHData.state.page=GHData.state.character?(GHData.state.page||"전체맵"):"캐릭터 설정";GHData.save();render();}).catch((error)=>showError(form,error.message||"로그인 정보를 확인해 주세요."));return;
     }
     if(form.id==="character-form"){
       event.preventDefault();const result=GHCharacter.validate(form);if(!result.ok){if(result.error!==null)showError(form,result.error);return;}
