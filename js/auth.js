@@ -82,14 +82,24 @@
     const policyError=passwordError(username,password);if(policyError)return {error:policyError};
     if (password!==confirm) return {error:"비밀번호 확인이 일치하지 않아요."};
     if (!/^[A-Za-z]{7}$/.test(inviteCode)) return {error:"초대 코드는 영문 대소문자 7자리로 입력해 주세요."};
+    const registered=JSON.parse(localStorage.getItem("gwiryeonghakyo.registered.v1")||"[]");
+    if(registered.some((item)=>String(item.username).toLowerCase()===username.toLowerCase()))return {error:"이미 사용 중인 아이디예요."};
     const salt=crypto.getRandomValues(new Uint8Array(16));
     const hash=await hashPassword(password,salt);
     try {
       const blocked=JSON.parse(localStorage.getItem(WITHDRAWN_KEY)||"[]");
       for(const item of blocked){if(item.username===username&&item.passwordHash===await hashPassword(password,Uint8Array.from(atob(item.passwordSalt),(c)=>c.charCodeAt(0))))return {error:"탈퇴한 계정에서 사용한 아이디와 비밀번호 조합은 다시 사용할 수 없어요."};}
     } catch (_error) { return {error:"가입 정보를 확인하지 못했어요. 다시 시도해 주세요."}; }
-    window.GHData.state.account={username,inviteCode,createdAt:Date.now(),passwordSalt:btoa(String.fromCharCode(...salt)),passwordHash:hash};
-    window.GHData.state.sessionActive=true;window.GHData.save();return {ok:true};
+    window.GHData.state.pendingAccount={username,inviteCode,createdAt:Date.now(),passwordSalt:btoa(String.fromCharCode(...salt)),passwordHash:hash};
+    window.GHData.state.sessionActive=true;window.GHData.save();return {ok:true,setup:true};
   }
-  window.GHAuth = { render, submit, startCooldown, rememberWithdrawal };
+  function finalizeSignup(name){
+    const state=window.GHData.state;const pending=state.pendingAccount;if(!pending)return false;
+    const registered=JSON.parse(localStorage.getItem("gwiryeonghakyo.registered.v1")||"[]");
+    if(registered.some((item)=>String(item.username).toLowerCase()===pending.username.toLowerCase()))return {error:"이미 사용 중인 아이디예요."};
+    if(registered.some((item)=>String(item.name).toLocaleLowerCase()===String(name).toLocaleLowerCase()))return {error:"이미 사용 중인 캐릭터 이름이에요."};
+    registered.push({username:pending.username,name});localStorage.setItem("gwiryeonghakyo.registered.v1",JSON.stringify(registered));
+    state.account=pending;state.pendingAccount=null;state.sessionActive=true;window.GHData.save();window.GHSync?.publish("account.created",{username:pending.username,characterName:name}).catch(()=>{});return true;
+  }
+  window.GHAuth = { render, submit, startCooldown, rememberWithdrawal, finalizeSignup };
 })();
