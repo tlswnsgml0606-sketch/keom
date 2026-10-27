@@ -6,36 +6,38 @@
     { x:82, y:82 }, { x:49, y:35 }, { x:52, y:71 }, { x:31, y:55 }, { x:78, y:28 }
   ];
   const detailRed = [
-    { label:"물체", x:49, y:43, approachPoint:5 },
-    { label:"문", x:52, y:63, approachPoint:6 },
-    { label:"책장", x:39, y:55, approachPoint:7 }
+    { label:"물체 살펴보기", x:49, y:43, approachPoint:5 },
+    { label:"문 열기", x:52, y:63, approachPoint:6 },
+    { label:"책장 살펴보기", x:39, y:55, approachPoint:7 }
   ];
   const roomBlue = [
     { x:42, y:49 }, { x:78, y:68 }, { x:79, y:20 }, { x:66, y:82 }
   ];
   const roomRed = [
-    { label:"달력", x:71, y:20, action:"calendar", approachPoint:2, labelPosition:"below-left" },
-    { label:"침대", x:34, y:49, action:"sleep", approachPoint:0, labelPosition:"left" },
-    { label:"문", x:58, y:82, action:"exit-room", approachPoint:3, labelPosition:"above" }
+    { label:"달력 열기", x:71, y:20, action:"calendar", approachPoint:2, labelPosition:"below-left" },
+    { label:"침대에서 자기", x:34, y:49, action:"sleep", approachPoint:0, labelPosition:"left" },
+    { label:"나가기", x:58, y:82, action:"exit-room", approachPoint:3, labelPosition:"above" }
   ];
   const outsideRed = [...detailRed,{label:"문",x:78,y:20,action:"enter-room",approachPoint:8}];
-  const REFERENCE_MOVE_MS = 1120;
+  const REFERENCE_MOVE_MS = 2240;
   const activeMoves = new WeakMap();
   let chatRevealed = false;
   const coords=(point)=>`left:${point.x}%;top:${point.y}%`;
   function stampMarkup(point, name, options={}) {
     const initial=options.sleeping?name:(name||"인장").slice(0,1);
     const portrait=options.portrait?`<img class="map-seal-image" src="${escapeHtml(options.portrait)}" alt="">`:"";
-    return `<button type="button" class="map-stamp${options.sleeping?" sleeping-stamp":""}${options.whole?" whole-seal-stamp":""}" data-stamp data-profile-name="${escapeHtml(name)}" style="${coords(point)}" data-name="${escapeHtml(name)}" aria-label="${escapeHtml(name)}">${portrait||escapeHtml(initial)}</button>`;
+    return `<button type="button" class="map-stamp${options.sleeping?" sleeping-stamp":""}${options.whole?" whole-seal-stamp":""}${options.grouped?" has-group":""}" data-stamp data-profile-name="${escapeHtml(name)}" style="${coords(point)}" data-name="${escapeHtml(name)}" aria-label="${escapeHtml(name)}">${portrait||escapeHtml(initial)}</button>`;
   }
   function escapeHtml(value) { return String(value).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
   function isMine(item){const ownName=window.GHData.state.character?.name;return typeof item.mine==="boolean"?item.mine:item.name===ownName;}
   function renderSpeechBubbles(messages,point){
-    const active=messages.filter((item)=>Date.now()-Number(item.createdAt||0)<5000);
+    const active=messages.filter((item)=>Date.now()-Number(item.createdAt||0)<3000);
     if(!active.length)return "";
     const left=Math.max(20,Math.min(80,point.x));
-    const bubbles=active.map((item)=>`<div class="stamp-bubble ${isMine(item)?"mine":"other"}" data-bubble-id="${escapeHtml(item.id)}"><strong>${escapeHtml(item.name)}:</strong> ${escapeHtml(item.text)}</div>`).join("");
-    for(const item of active){const remaining=Math.max(0,5000-(Date.now()-Number(item.createdAt||0)));setTimeout(()=>{document.querySelectorAll("[data-bubble-id]").forEach((bubble)=>{if(bubble.dataset.bubbleId===String(item.id))bubble.remove();});},remaining);}
+    const whispers=(window.GHData.state.whisperMessages||[]).filter((item)=>item.with===window.GHData.state.character?.name&&item.scene===(window.GHData.state.map.detailScene||"room")&&Date.now()-Number(item.createdAt||0)<3000).map((item)=>({...item,name:item.author,mine:false,whisper:true}));
+    const all=[...active,...whispers].sort((a,b)=>Number(a.createdAt||0)-Number(b.createdAt||0));
+    const bubbles=all.map((item)=>`<div class="stamp-bubble ${isMine(item)?"mine":"other"}${item.whisper?" whisper":""}" data-bubble-id="${escapeHtml(item.id)}"><strong>${escapeHtml(item.name)}${item.whisper?" (귓속말)":""}:</strong> ${escapeHtml(item.text)}</div>`).join("");
+    for(const item of all){const remaining=Math.max(0,3000-(Date.now()-Number(item.createdAt||0)));setTimeout(()=>{document.querySelectorAll("[data-bubble-id]").forEach((bubble)=>{if(bubble.dataset.bubbleId===String(item.id))bubble.remove();});},remaining);}
     return `<div class="stamp-bubble-stack" style="left:${left}%;top:${point.y-4}%">${bubbles}</div>`;
   }
   function renderSpeechHistory(messages){
@@ -44,20 +46,28 @@
   }
   function renderBoard(kind) {
     const state=window.GHData.state;const isWhole=kind==="whole";const scene=isWhole?"whole":state.map.detailScene||"room";const isRoom=scene==="room";const points=isWhole?wholePoints:(isRoom?roomBlue:detailBlue);const active=Number(isWhole?state.map.wholePoint:(isRoom?state.map.roomPoint:state.map.detailPoint))||0;
-    const name=state.character?.name||"내 캐릭터";const sleeping=Boolean(state.status.sleepStartedAt);const marker=isWhole?{x:50,y:28}:sleeping&&isRoom?{x:23.5,y:42.5}:points[Math.min(active,points.length-1)];const messages=state.areaMessages||[];
-    const moveButtons=points.map((p,index)=>`<button class="map-point ${isWhole?"green":"blue"}" type="button" data-map-point="${kind}" data-point-index="${index}" style="${coords(p)}" aria-label="${isWhole?"내 방으로 이동":"이동"}"><span class="map-dot"></span></button>`).join("");
+    const name=state.character?.name||"내 캐릭터";const sleeping=Boolean(state.status.sleepStartedAt);const marker=isWhole?{x:50,y:28}:sleeping&&isRoom?{x:23.5,y:42.5}:points[Math.min(active,points.length-1)];const messages=(state.areaMessages||[]).filter((item)=>!item.scene||item.scene===scene);
+    const selected=isWhole?Number(state.map.wholeSelectedPoint??-1):boardSelection(isRoom?"room":"detail");
+    const moveButtons=points.map((p,index)=>`<button class="map-point ${isWhole?"green":"blue"}${selected===index?" was-clicked":""}" type="button" data-map-point="${kind}" data-point-index="${index}" style="${coords(p)}" aria-label="${isWhole?"내 방으로 이동":"이동"}"><span class="map-dot"></span></button>`).join("");
     const interactionPoints=isWhole?[]:(isRoom?roomRed:outsideRed);
-    const redButtons=interactionPoints.map((p,index)=>`<button class="map-point red label-${p.labelPosition||"below"}" type="button" data-interaction-point="${index}" style="${coords(p)}" aria-label="${p.label}"><span class="map-dot"></span><span class="map-point-label">${p.label}</span></button>`).join("");
+    const redButtons=interactionPoints.map((p,index)=>`<button class="map-point red label-${p.labelPosition||"below"}" type="button" data-interaction-point="${index}" style="${coords(p)}" aria-label="${p.label}"><span class="map-dot"></span><span class="map-point-label">${escapeHtml(p.label)}</span></button>`).join("");
     const event=state.events.find((item)=>item.demo);const remote=state.remotePresence||[];const roomRemote=remote.filter((person)=>person.scene==="room"||person.location==="내 방");const people=[{name,portrait:state.character?.portrait,arrivedAt:Number(state.map.arrivedAt||0),mine:true},{name:state.demoAccount.name,portrait:null,arrivedAt:Number(state.demoAccount.arrivedAt||1)},{name:state.demoAccount2.name,portrait:null,arrivedAt:Number(state.demoAccount2.arrivedAt||2)},...roomRemote].sort((a,b)=>a.arrivedAt-b.arrivedAt);const latest=people[people.length-1];const zoom=Math.max(80,Math.min(400,Number(state.map.wholeZoom)||100));const wholeOccupants=`<div class="whole-occupants" aria-label="내 방에 있는 사람"><button type="button" class="whole-name" data-profile-name="${escapeHtml(latest.name)}">${escapeHtml(latest.name)}</button>${stampMarkup({x:50,y:28},latest.name,{whole:true,portrait:latest.portrait})}${people.length>1?`<span class="whole-count">${escapeHtml(latest.name)}님 외 ${people.length-1}명</span>`:""}${event?`<span class="whole-event">${escapeHtml(event.title)}</span>`:""}</div>`;
     const roomArt=isRoom?`<div class="room-art${sleeping?" sleeping":""}" aria-hidden="true"><div class="room-back-wall"></div><div class="room-bed"><span>침대</span></div><div class="room-desk"><span>책상</span></div><div class="room-calendar">달력</div><div class="room-door"><span>문</span></div></div>`:isWhole?`<div class="whole-room-card${event?" event-active":""}" aria-label="내 방, ${people.length}명">${wholeOccupants}<span class="whole-room-name">내 방</span></div>`:"";
     const roomClass=isRoom?" room-interior":"";const locationLabel=isWhole?"전체맵":(isRoom?"내방":"방 밖 · 임시 맵");
-    const demoStamps=!isWhole&&!sleeping?`<button class="map-presence-name label-right" type="button" data-profile-name="임시" style="${coords(isRoom?roomBlue[2]:detailBlue[1])}">임시</button><button class="map-presence-name label-left" type="button" data-profile-name="임시 2" style="${coords(isRoom?roomBlue[1]:detailBlue[2])}">임시 2</button>${state.remotePresence.filter((person)=>person.scene===scene).map((person)=>{const remotePoints=scene==="room"?roomBlue:detailBlue;const remotePoint=remotePoints[Math.max(0,Math.min(remotePoints.length-1,Number(person.statePoint)||0))];return `<button class="map-presence-name" type="button" data-profile-name="${escapeHtml(person.name)}" style="${coords(remotePoint)}">${escapeHtml(person.name)}</button>`;}).join("")}`:"";
-    const boardContent=`${roomArt}<span class="map-hint">${isWhole?"점으로 구역 이동":"십자 표식은 이동 · X 표식은 상호작용"}</span><span class="map-location-label">${locationLabel}</span>${moveButtons}${redButtons}${demoStamps}${isWhole?"":stampMarkup(marker,name,{sleeping})}${isWhole?"":renderSpeechBubbles(messages,marker)}`;
+    const presence=kind==="detail"&&!sleeping?renderOccupants(scene,points,active):"";
+    const groupedMine=kind==="detail"&&!sleeping&&presence.includes(`data-mine-group="${active}"`);
+    const boardContent=`${roomArt}<span class="map-hint">${isWhole?"검은 원은 구역 이동":"십자 표식은 이동 · X 표식은 상호작용"}</span><span class="map-location-label">${locationLabel}</span>${moveButtons}${redButtons}${presence}${isWhole?"":stampMarkup(marker,name,{sleeping,grouped:groupedMine})}${isWhole?"":renderSpeechBubbles(messages,marker)}`;
     const layer=isWhole?`<div class="map-layer" style="--map-zoom:${zoom/100}">${boardContent}</div>`:boardContent;
-    const chat=kind==="detail"?renderMapChat(state.areaMessages||[]):"";
+    const chat=kind==="detail"?renderMapChat(messages):"";
     return `<div class="map-board${roomClass}${isWhole&&zoom>=150?" zoomed-in":""}" data-map-board="${kind}" data-scene="${scene}" data-zoom="${zoom}" aria-label="${locationLabel}">${layer}${chat}</div>
     ${isWhole?`<div class="map-zoom-readout" data-zoom-value aria-live="polite">${zoom}%</div>`:""}
-    ${!isWhole?`<div class="map-legend"><span><i class="legend-dot blue"></i>이동점</span><span><i class="legend-dot red"></i>상호작용점 · 가까운 이동점에 도착해야 사용 가능</span></div>`:""}`;
+    ${!isWhole?`<div class="map-legend"><span><i class="legend-cross"></i>이동점</span><span><i class="legend-x"></i>상호작용점 · 가까운 이동점에 도착해야 사용 가능</span></div>`:""}`;
+  }
+  function boardSelection(kind){const map=window.GHData.state.map;return Number(map[`${kind}SelectedPoint`]??-1);}
+  function renderOccupants(scene,points,currentIndex){
+    const state=window.GHData.state;const isRoom=scene==="room";const people=[{name:state.character?.name||"내 캐릭터",portrait:state.character?.portrait,arrivedAt:Number(state.map.arrivedAt||0),index:currentIndex,mine:true},{name:state.demoAccount.name,portrait:null,arrivedAt:Number(state.demoAccount.arrivedAt||1),index:isRoom?2:1},{name:state.demoAccount2.name,portrait:null,arrivedAt:Number(state.demoAccount2.arrivedAt||2),index:isRoom?1:2},...(state.remotePresence||[]).filter((person)=>person.scene===scene).map((person)=>({name:person.name,portrait:person.portrait,arrivedAt:Number(person.arrivedAt||0),index:Math.max(0,Math.min(points.length-1,Number(person.statePoint)||0))}))];
+    const groups=new Map();for(const person of people){const index=Math.max(0,Math.min(points.length-1,Number(person.index)||0));if(!groups.has(index))groups.set(index,[]);groups.get(index).push(person);}
+    return [...groups].map(([index,members])=>{const ordered=members.sort((a,b)=>a.arrivedAt-b.arrivedAt);const latest=ordered.at(-1);if(members.length===1&&latest.mine)return "";const p=points[index];const grouped=members.length>1;const text=grouped?`${latest.name}님 외 ${members.length-1}명`:latest.name;return `<div class="map-occupant-group${grouped?" grouped":""}"${grouped&&latest.mine?` data-mine-group="${index}"`:""} style="${coords(p)}"><button type="button" class="map-group-seal" data-profile-name="${escapeHtml(latest.name)}" aria-label="${escapeHtml(latest.name)} 프로필">${latest.portrait?`<img src="${escapeHtml(latest.portrait)}" alt="">`:escapeHtml(latest.name.slice(0,1))}</button><button type="button" class="map-presence-name" data-profile-name="${escapeHtml(latest.name)}">${escapeHtml(text)}</button></div>`;}).join("");
   }
   function renderMapChat(messages){
     const entries=messages.map((item)=>`<div class="map-speech ${isMine(item)?"mine":"other"}"><span class="speech-name">${escapeHtml(item.name)}:</span>${escapeHtml(item.text)}</div>`).join("");
@@ -68,29 +78,29 @@
     window.GHData.state.map.active=kind;window.GHData.save();
     const title=kind==="whole"?"전체맵":(window.GHData.state.map.detailScene==="room"?"내방":"방 밖 · 임시 맵");
     const note=kind==="whole"?"현재 공개된 지도는 내 방 구역이에요. 확대하면 인장과 닉네임을 볼 수 있어요.":(window.GHData.state.map.detailScene==="room"?"이동점에는 이름을 표시하지 않아요. 가까운 이동점에 도착하면 상호작용할 수 있어요.":"임시 외부 맵이에요. 이동점으로 내 방에 들어가세요.");
-    return `<div class="game-screen"><div class="status-bar">${window.GHApp.statusMarkup()}</div>
+    return `<div class="game-screen map-screen"><div class="status-bar">${window.GHApp.statusMarkup()}</div>
       <header class="screen-heading"><h1>${title}</h1>${kind==="detail"?"<small>현재 세부맵</small>":"<small>마우스 휠로 확대·축소</small>"}</header>
       <main class="screen-scroll"><p class="hint map-page-hint">${note}</p>${renderBoard(kind)}</main>
       ${window.GHApp.navMarkup(kind==="whole"?"전체맵":"세부맵")}</div>`;
   }
   function move(kind,index,board) {
     const state=window.GHData.state;const scene=board.dataset.scene;const points=kind==="whole"?wholePoints:(scene==="room"?roomBlue:detailBlue);const point=points[index];if(!point)return;
-    if(kind==="whole"){state.map.wholePoint=index;window.GHData.save();changeScene("room");return;}
-    const key=kind==="whole"?"wholePoint":(scene==="room"?"roomPoint":"detailPoint");
+    if(kind==="whole"){state.map.wholePoint=index;state.map.wholeSelectedPoint=index;window.GHData.save();changeScene("room");return;}
+    const key=kind==="whole"?"wholePoint":(scene==="room"?"roomPoint":"detailPoint");const selectionKey=scene==="room"?"roomSelectedPoint":"detailSelectedPoint";
     const arrivedKey=scene==="room"?"roomArrivedPoint":"detailArrivedPoint";
     const stamp=board.querySelector("[data-stamp]");if(!stamp)return;
     const boardRect=board.getBoundingClientRect();const stampRect=stamp.getBoundingClientRect();
     const previous={x:((stampRect.left+stampRect.width/2-boardRect.left)/boardRect.width)*100,y:((stampRect.top+stampRect.height/2-boardRect.top)/boardRect.height)*100};
-    const previousIndex=Number(state.map[arrivedKey]??state.map[key]??0);const alreadyMoving=activeMoves.has(stamp);state.map[key]=index;state.map[arrivedKey]=null;state.map.currentPoint="이동 중";window.GHData.save();
-    if(!alreadyMoving&&Math.hypot(previous.x-point.x,previous.y-point.y)<0.5){state.map[arrivedKey]=index;window.GHData.save();return;}
+    const previousIndex=Number(state.map[arrivedKey]??state.map[key]??0);const alreadyMoving=activeMoves.has(stamp);board.querySelectorAll(".map-point.was-clicked").forEach((node)=>node.classList.remove("was-clicked"));board.querySelectorAll(".map-point.is-moving-target").forEach((node)=>node.classList.remove("is-moving-target"));board.querySelector(`[data-map-point][data-point-index="${index}"]`)?.classList.add("is-moving-target");state.map[selectionKey]=index;state.map[key]=index;state.map[arrivedKey]=null;state.map.currentPoint="이동 중";window.GHData.save();
+    if(!alreadyMoving&&Math.hypot(previous.x-point.x,previous.y-point.y)<0.5){state.map[arrivedKey]=index;board.querySelector(`[data-map-point][data-point-index="${index}"]`)?.classList.remove("is-moving-target");board.querySelector(`[data-map-point][data-point-index="${index}"]`)?.classList.add("was-clicked");window.GHData.save();return;}
     board.querySelector("[data-route]")?.remove();
     if(previous.x!==point.x||previous.y!==point.y){
       board.querySelectorAll(".footstep").forEach((step)=>step.remove());
       const waypoints=scene==="room"?findRoomRoute(previous,point,board):[];
-      if(waypoints===null){toastRouteBlocked();state.map[key]=previousIndex;state.map[arrivedKey]=previousIndex;window.GHData.save();return;}
+      if(waypoints===null){toastRouteBlocked();state.map[key]=previousIndex;state.map[arrivedKey]=previousIndex;state.map[selectionKey]=previousIndex;board.querySelector(`[data-map-point][data-point-index="${index}"]`)?.classList.remove("is-moving-target");board.querySelector(`[data-map-point][data-point-index="${previousIndex}"]`)?.classList.add("was-clicked");window.GHData.save();return;}
       const routePoints=[previous,...waypoints,point].filter((item)=>Number.isFinite(Number(item.x))&&Number.isFinite(Number(item.y)));
       const name=state.character?.name||"내 캐릭터";stamp.dataset.name=name;stamp.textContent=name.slice(0,1);
-      animateAlongRoute(stamp,board,routePoints,detailBlue,()=>{state.map[arrivedKey]=index;state.map.arrivedAt=Date.now();window.GHData.save();window.GHSync?.publish("map.position",{scene,statePoint:index,name:state.character?.name}).catch(()=>{});board.querySelectorAll(".map-point.is-moving-target").forEach((button)=>button.classList.remove("is-moving-target"));setTimeout(()=>board.querySelectorAll(".footstep").forEach((step)=>{step.style.opacity="0";setTimeout(()=>step.remove(),450);}),1800);});
+      animateAlongRoute(stamp,board,routePoints,detailBlue,()=>{state.map[arrivedKey]=index;state.map.arrivedAt=Date.now();window.GHData.save();window.GHSync?.publish("map.position",{scene,statePoint:index,name:state.character?.name}).catch(()=>{});board.querySelectorAll(".map-point.is-moving-target").forEach((button)=>button.classList.remove("is-moving-target"));board.querySelector(`[data-map-point][data-point-index="${index}"]`)?.classList.add("was-clicked");setTimeout(()=>board.querySelectorAll(".footstep").forEach((step)=>{step.style.opacity="0";setTimeout(()=>step.remove(),450);}),900);});
     }else{state.map[arrivedKey]=index;window.GHData.save();}
   }
   function findRoomRoute(from,to,board){
@@ -166,7 +176,7 @@
   }
   function showEventTeam(){
     const event=window.GHData.state.events.find((item)=>item.id==="demo-event");if(!event)return;
-    const members=event.team.map((name)=>`<div class="team-member-row" data-team-member="${escapeHtml(name)}"><span>${escapeHtml(name)}</span>${name.startsWith("임시")?'<small class="hint">테스트 계정</small>':""}<button class="button-quiet team-eject-button" type="button" data-team-eject-toggle="${escapeHtml(name)}" hidden>방출</button><small class="hint long-press-hint">길게 눌러 방출</small></div>`).join("")||'<p class="hint">현재 팀원이 없어요.</p>';
+    const members=event.team.map((name)=>`<div class="team-member-row" data-team-member="${escapeHtml(name)}"><span>${escapeHtml(name)}</span>${name.startsWith("임시")?'<small class="hint">테스트 계정</small>':""}<button class="button-quiet team-eject-button" type="button" data-team-eject-toggle="${escapeHtml(name)}">방출</button></div>`).join("")||'<p class="hint">현재 팀원이 없어요.</p>';
     window.GHApp.openDialog(event.title,`<p>${escapeHtml(event.date)} ${escapeHtml(event.time)}</p><div class="schedule-team-head"><strong>팀원 목록</strong><button class="plus-button" type="button" data-team-add aria-label="팀원 추가">＋</button></div><div class="schedule-team-list">${members}</div>`);
   }
   function showEjectLetter(name){

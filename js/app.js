@@ -22,14 +22,14 @@
   function setPage(page){GHData.state.page=page;if(page==="전체맵")GHData.state.map.active="whole";if(page==="세부맵")GHData.state.map.active="detail";GHData.save();render();}
   function addAreaMessage(form){
     const text=String(new FormData(form).get("message")||"").trim();if(!text)return;
-    const state=GHData.state;const names=[state.demoAccount.name,state.demoAccount2.name];const mentioned=names.sort((a,b)=>b.length-a.length).find((name)=>text.startsWith("@"+name)&&(text.length===name.length+1||/\s/.test(text[name.length+1])));const mention=mentioned?{name:mentioned,text:text.slice(mentioned.length+1).trim()}:null;
+    const state=GHData.state;const names=[state.demoAccount.name,state.demoAccount2.name,...(state.remoteAccounts||[]).map((item)=>item.name)].filter(Boolean);const mentioned=names.sort((a,b)=>b.length-a.length).find((name)=>text.startsWith("@"+name)&&(text.length===name.length+1||/\s/.test(text[name.length+1])));const mention=mentioned?{name:mentioned,text:text.slice(mentioned.length+1).trim()}:null;
     if(mention){
       const recipient=mention.name;
-      const whisper={id:`whisper-${Date.now()}`,with:recipient,author:state.character.name,text:mention.text||text,mine:true,createdAt:Date.now()};
-      state.whisperMessages.push(whisper);state.conversations["귓속말"]??=[];state.conversations["귓속말"].push(whisper);
+      const whisper={id:`whisper-${Date.now()}`,with:recipient,author:state.character.name,text:mention.text||text,mine:true,scene:state.map.detailScene||"room",createdAt:Date.now()};
+      state.whisperMessages.push({...whisper,scene:state.map.detailScene||"room"});
       GHSync.publish("chat.whisper",whisper).catch(()=>{});
-      GHData.addAlert("채팅","새 귓속말",`${recipient}에게 귓속말을 보냈어요.`,{contact:recipient});GHData.addRecord("귓속말",`${state.character.name} → ${recipient}: ${whisper.text}`);
-      GHData.save();render();toast(`${recipient}에게만 보이는 귓속말을 보냈어요.`);return;
+      GHData.addRecord("귓속말",`${state.character.name} → ${recipient}: ${whisper.text}`);
+      GHData.save();render();toast(`${recipient}에게 귓속말을 보냈어요.`);return;
     }
     const record={id:Date.now()+Math.random(),name:state.character.name,mine:true,text,date:GHData.todayKey(),createdAt:Date.now(),scene:state.map.detailScene};state.areaMessages.push(record);GHSync.publish("map.speech",record).catch(()=>{});GHData.addRecord("말하기",`${record.name}: ${text}`,record.date);render();document.querySelector("[data-area-chat-input]")?.focus();
   }
@@ -41,6 +41,7 @@
   }
   function handleClick(event){
     GHMaps.handleMapClick(event.target);
+    if(event.target.closest("[data-crop-save]")){const form=document.getElementById("character-form");if(form)GHCharacter.applyCrop(form);document.getElementById("message-dialog").close();return;}
     const authMode=event.target.closest("[data-auth-mode]");if(authMode){GHData.state.authMode=authMode.dataset.authMode;GHData.save();render();return;}
     if(event.target.closest("[data-logout]")){GHData.state.sessionActive=false;GHData.state.authMode="login";GHData.save();render();return;}
     if(event.target.closest("[data-withdraw]")){
@@ -64,7 +65,7 @@
     if(event.target.closest("[data-team-eject-toggle]")){GHMaps.showEjectLetter(event.target.closest("[data-team-eject-toggle]").dataset.teamEjectToggle);return;}
     if(event.target.closest("[data-team-eject-send]")){const name=event.target.closest("[data-team-eject-send]").dataset.teamEjectSend;const body=document.querySelector("#message-dialog .letter-body")?.value||"";if(GHLetters.sendTeamEjection("demo-event",name,body)){document.getElementById("message-dialog").close();render();toast(`${name}에게 팀 방출 편지를 보냈어요.`);}return;}
     const jobButton=event.target.closest("[data-job]");if(jobButton){const form=event.target.closest("form");if(form)GHCharacter.handleClick(form,event);return;}
-    if(event.target.closest("[data-stat-change],[data-weapon],[data-upload],[data-use-default]")){const form=event.target.closest("form");if(form)GHCharacter.handleClick(form,event);return;}
+    if(event.target.closest("[data-stat-change],[data-weapon],[data-upload],[data-use-default],[data-adjust-portrait],[data-portrait]")){const form=event.target.closest("form");if(form)GHCharacter.handleClick(form,event);return;}
     const filter=event.target.closest("[data-chat-filter]");if(filter){GHData.state.chatFilter=filter.dataset.chatFilter;GHData.save();render();return;}
     const contact=event.target.closest("[data-chat-contact]");if(contact){GHData.state.selectedChat=contact.dataset.chatContact;GHData.save();render();return;}
     const mentionButton=event.target.closest("[data-mention-name]");if(mentionButton){const input=mentionButton.closest("form")?.querySelector("[data-area-chat-input]");if(input){input.value="@"+mentionButton.dataset.mentionName+" ";input.focus();}const menu=mentionButton.closest("[data-mention-suggestions]");if(menu)menu.hidden=true;return;}
@@ -108,6 +109,7 @@
   }
   let accountSearchTimer=null;
   function handleInput(event){
+    if(event.target.matches("[data-crop-x],[data-crop-y],[data-crop-zoom]")){GHCharacter.updateCropInput(event.target);}
     if(event.target.matches(".letter-body")){const counter=event.target.closest(".team-letter-paper")?.querySelector(".letter-limit span");if(counter)counter.textContent=`${event.target.value.length} / 500`;}
     if(event.target.id==="record-search"){
       const raw=event.target.value.trim();const query=raw.toLocaleLowerCase();let total=0;document.querySelectorAll("#record-list .record-group").forEach((group)=>{let shown=0;group.querySelectorAll(".record-line").forEach((line)=>{const content=line.querySelector(".record-text"),kind=line.querySelector(".record-kind");const text=content?.dataset.rawText||content?.textContent||"",type=kind?.dataset.rawType||kind?.textContent||"";const match=!query||`${type} ${text}`.toLocaleLowerCase().includes(query);line.hidden=!match;if(content)content.innerHTML=highlightText(text,raw);if(kind)kind.innerHTML=highlightText(type,raw);if(match)shown++;});group.hidden=shown===0;if(!group.hidden)total+=shown;});const empty=document.querySelector("[data-record-empty]");if(empty)empty.hidden=total>0||!query;
@@ -122,7 +124,7 @@
       const results=document.querySelector("[data-chat-search-results]");if(results){const accountRows=accounts.map((item)=>`<button type="button" class="search-result" data-chat-contact="${escapeHtml(item.name)}"><span class="avatar">${escapeHtml(item.portrait)}</span><span><strong>${highlightText(item.name,raw)}</strong><small>계정</small></span></button>`).join("");const messageRows=matching.slice(0,12).map((item)=>`<button type="button" class="search-result" data-search-chat-contact="${escapeHtml(item.with)}" data-search-chat-category="${escapeHtml(item.category)}"><span><strong>${highlightText(`${item.with} · ${item.category}`,raw)}</strong><small>${highlightText(item.text,raw)}</small></span></button>`).join("");results.innerHTML=`${accountRows?'<div class="search-result-heading">계정</div>'+accountRows:""}${messageRows?'<div class="search-result-heading">채팅 내역</div>'+messageRows:""}${!accountRows&&!messageRows?'<p class="hint">검색 결과가 없어요.</p>':""}`;results.hidden=!query;}
     }
     if(event.target.matches("[data-area-chat-input]")){
-      const match=event.target.value.match(/@([^@\s]*)$/);const menu=event.target.closest("form")?.querySelector("[data-mention-suggestions]");if(menu){if(!match){menu.hidden=true;menu.innerHTML="";}else{const query=match[1].toLocaleLowerCase();const users=[GHData.state.demoAccount,GHData.state.demoAccount2].filter((item)=>item.name.toLocaleLowerCase().includes(query));menu.innerHTML=users.map((item)=>`<button type="button" data-mention-name="${escapeHtml(item.name)}"><span class="avatar">${escapeHtml(item.portrait)}</span><strong>${escapeHtml(item.name)}</strong></button>`).join("");menu.hidden=users.length===0;}}
+      const match=event.target.value.match(/@([^@\s]*)$/);const menu=event.target.closest("form")?.querySelector("[data-mention-suggestions]");if(menu){if(!match){menu.hidden=true;menu.innerHTML="";}else{const query=match[1].toLocaleLowerCase();const users=[GHData.state.demoAccount,GHData.state.demoAccount2,...(GHData.state.remoteAccounts||[])].filter((item,index,list)=>item?.name?.toLocaleLowerCase().includes(query)&&list.findIndex((other)=>other?.name?.toLocaleLowerCase()===item.name.toLocaleLowerCase())===index);menu.innerHTML=users.map((item)=>`<button type="button" data-mention-name="${escapeHtml(item.name)}"><span class="avatar">${escapeHtml(item.portrait||item.name.slice(0,1))}</span><strong>${escapeHtml(item.name)}</strong></button>`).join("");menu.hidden=users.length===0;}}
     }
   }
   function handleChange(event){
@@ -135,17 +137,10 @@
   app.addEventListener("input",handleInput);
   app.addEventListener("change",handleChange);
   app.addEventListener("click",(event)=>{const result=event.target.closest("[data-search-chat-contact]");if(!result)return;GHData.state.selectedChat=result.dataset.searchChatContact;GHData.state.chatFilter=result.dataset.searchChatCategory;GHData.save();render();});
-  let longPressTimer=null;let longPressTarget=null;
-  app.addEventListener("pointerdown",(event)=>{const row=event.target.closest("[data-team-member]");if(!row)return;longPressTarget=row;longPressTimer=setTimeout(()=>{row.querySelector("[data-team-eject-toggle]")?.removeAttribute("hidden");row.classList.add("eject-available");},650);});
-  const cancelLongPress=()=>{clearTimeout(longPressTimer);longPressTimer=null;longPressTarget=null;};
-  app.addEventListener("pointerup",cancelLongPress);app.addEventListener("pointercancel",cancelLongPress);app.addEventListener("pointerleave",cancelLongPress);
-  document.getElementById("message-dialog").addEventListener("pointerdown",(event)=>{const row=event.target.closest("[data-team-member]");if(!row)return;longPressTarget=row;longPressTimer=setTimeout(()=>{row.querySelector("[data-team-eject-toggle]")?.removeAttribute("hidden");row.classList.add("eject-available");},650);});
-  const cancelDialogPress=()=>{clearTimeout(longPressTimer);longPressTimer=null;longPressTarget=null;};
-  document.getElementById("message-dialog").addEventListener("pointerup",cancelDialogPress);document.getElementById("message-dialog").addEventListener("pointercancel",cancelDialogPress);
   GHSync.subscribe("map.position",(presence)=>{if(!presence?.name||presence.name===GHData.state.character?.name)return;const state=GHData.state;state.remotePresence??=[];state.remotePresence=state.remotePresence.filter((item)=>item.name!==presence.name);state.remotePresence.push({...presence,arrivedAt:Date.now()});GHData.save();if(["전체맵","세부맵"].includes(state.page))render();});
   GHSync.subscribe("map.speech",(message)=>{if(!message?.text||message.name===GHData.state.character?.name)return;const state=GHData.state;state.areaMessages.push({...message,mine:false,createdAt:Date.now()});GHData.addRecord("말하기",`${message.name}: ${message.text}`);if(state.page==="세부맵"&&state.map.detailScene===message.scene)render();});
   GHSync.subscribe("chat.message",(message)=>{if(!message?.with||!message?.text)return;const state=GHData.state;const category=message.category||"대화";state.conversations[category]??=[];state.conversations[category].push({...message,mine:false});GHData.addRecord(category,`${message.author}: ${message.text}`);GHData.addAlert("채팅","새 채팅",`${message.author} 님이 메시지를 보냈어요.`,{contact:message.author});if(state.page==="채팅")render();});
-  GHSync.subscribe("chat.whisper",(message)=>{if(!message?.with||!message?.text||message.with!==GHData.state.character?.name)return;const state=GHData.state;state.conversations["귓속말"]??=[];state.conversations["귓속말"].push({...message,mine:false});GHData.addRecord("귓속말",`${message.author}: ${message.text}`);GHData.addAlert("채팅","새 귓속말",`${message.author} 님이 귓속말을 보냈어요.`,{contact:message.author});if(state.page==="채팅")render();});
+  GHSync.subscribe("chat.whisper",(message)=>{if(!message?.with||!message?.text||message.with!==GHData.state.character?.name)return;const state=GHData.state;const incoming={...message,mine:false,scene:message.scene||"room",createdAt:Date.now()};state.whisperMessages.push(incoming);GHData.addRecord("귓속말",`${message.author}: ${message.text}`);GHData.save();if(state.page==="세부맵"&&state.map.detailScene===incoming.scene)render();});
   GHSync.subscribe("letter.sent",(letter)=>{if(!letter?.to||letter.to!==GHData.state.character?.name)return;const state=GHData.state;state.letters.unshift({...letter,read:false});GHData.addAlert("편지",letter.subject,`${letter.from} 님이 편지를 보냈어요.`,{letterId:letter.id});if(state.page==="알림")render();});
   GHSync.subscribe("letter.response",(reply)=>{if(!reply?.letterId)return;const state=GHData.state;const original=state.letters.find((item)=>item.id===reply.letterId);if(!original)return;original.status=reply.decision==="accept"?"accepted":"rejected";const event=state.events.find((item)=>item.id===original.eventId);const action=reply.decision==="accept"?"수락":"거절";const response={id:`received-reply-${Date.now()}`,type:"team-response",from:reply.from,to:state.character?.name,subject:`${event?.title||"이벤트"} 팀 ${action}`,body:reply.body||"",decision:reply.decision,eventId:original.eventId,status:"received",date:GHData.todayKey(),createdAt:Date.now()};state.letters.unshift(response);GHData.addAlert("편지",response.subject,`${reply.from} 님이 ${action} 답장을 보냈어요.`,{letterId:response.id});GHData.addRecord("편지",`${reply.from} 님이 ${original.subject}에 ${action}했어요.`);render();});
   GHSync.subscribe("event.team",(event)=>{if(!event?.id)return;const state=GHData.state;const index=state.events.findIndex((item)=>item.id===event.id);if(index<0)state.events.push(event);else state.events[index]=event;GHData.save();});

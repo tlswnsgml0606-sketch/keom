@@ -21,8 +21,11 @@
     map: {
       active: "whole",
       wholePoint: 0,
+      wholeSelectedPoint: -1,
       detailPoint: 0,
       roomPoint: 0,
+      roomSelectedPoint: 0,
+      detailSelectedPoint: -1,
       roomArrivedPoint: 0,
       detailScene: "room",
       detailArrivedPoint: 0,
@@ -30,7 +33,7 @@
     },
     records: [],
     areaMessages: [],
-    conversations: { 대화: [], 사담: [], 귓속말: [] },
+    conversations: { 대화: [], 사담: [] },
     selectedChat: "임시",
     alerts: [],
     alertFilter: "전체",
@@ -65,7 +68,7 @@
       if(map.roomArrivedPoint===undefined)map.roomArrivedPoint=map.roomPoint;
       if(map.detailArrivedPoint===undefined)map.detailArrivedPoint=map.detailPoint;
       const conversations={ ...defaults.conversations, ...(value.conversations || {}) };
-      conversations.귓속말=Array.isArray(conversations.귓속말)?conversations.귓속말:[];
+      delete conversations.귓속말;
       return { ...defaults, ...value, character, pendingAccount:value.pendingAccount||null, statusVersion:3, status:migratedStatus, map, conversations, demoAccount2:value.demoAccount2||defaults.demoAccount2, events:Array.isArray(value.events)?value.events:[], letters:Array.isArray(value.letters)?value.letters:[], inventory:Array.isArray(value.inventory)?value.inventory:[], currency:Number(value.currency)||0, areaMessages:Array.isArray(value.areaMessages)?value.areaMessages:[], whisperMessages:Array.isArray(value.whisperMessages)?value.whisperMessages:[], remotePresence:Array.isArray(value.remotePresence)?value.remotePresence:[], remoteAccounts:Array.isArray(value.remoteAccounts)?value.remoteAccounts:[] };
     } catch (_error) {
       return freshState();
