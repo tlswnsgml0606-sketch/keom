@@ -136,8 +136,8 @@
   }
   function showInteraction(index,board) {
     const state=window.GHData.state;const scene=board?.dataset.scene||state.map.detailScene||"room";const point=(scene==="room"?roomRed:outsideRed)[index];if(!point)return;
-    const stamp=board?.querySelector("[data-stamp]");const arrived=scene==="room"?state.map.roomArrivedPoint:state.map.detailArrivedPoint;const current=scene==="room"?state.map.roomPoint:state.map.detailPoint;const arrivedMatches=arrived!==null&&arrived!==undefined&&Number(arrived)===Number(point.approachPoint);const positionMatches=Number(current)===Number(point.approachPoint);
-    if((!arrivedMatches&&!positionMatches)||!stamp||activeMoves.has(stamp)){window.GHApp.toast("조금 더 가까이 가보자");return;}
+    const stamp=board?.querySelector("[data-stamp]");const arrived=scene==="room"?state.map.roomArrivedPoint:state.map.detailArrivedPoint;
+    if(arrived!==point.approachPoint||!stamp||activeMoves.has(stamp)){window.GHApp.toast("조금 더 가까이 가보자");return;}
     if(point.action==="calendar"){showSchedule();return;}
     if(point.action==="sleep"){
       const status=state.status;const remaining=status.sleepWakeAt?Math.max(0,Math.ceil((status.sleepWakeAt-Date.now())/60000)):0;const sleepText=status.sleepStartedAt?`이미 잠들어 있어요. 약 ${remaining}분 뒤 깨어나요.`:`현재 피로 ${status.fatigue}/100 · 잠든 동안 5분마다 피로가 1 감소해요.`;
