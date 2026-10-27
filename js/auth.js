@@ -22,8 +22,8 @@
   }
   function render() {
     const state = window.GHData.state;
-    const login = state.authMode === "login" && state.account;
-    const setupPassword = Boolean(login && !state.account.passwordHash);
+    const login = state.authMode === "login";
+    const setupPassword = Boolean(login && state.account && !state.account.passwordHash);
     const locked = cooldownRemaining();
     const title = login ? "로그인" : "입학 신청";
     return `<main class="game-screen auth-screen">
