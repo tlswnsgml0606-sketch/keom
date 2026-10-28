@@ -1,24 +1,11 @@
 (function () {
   "use strict";
-  const wholePoints = [{ x:50, y:48, action:"enter-room" }];
-  const detailBlue = [
-    { x:20, y:30 }, { x:77, y:29 }, { x:29, y:72 }, { x:72, y:71 },
-    { x:82, y:82 }, { x:49, y:35 }, { x:52, y:71 }, { x:31, y:55 }, { x:78, y:28 }
-  ];
-  const detailRed = [
-    { label:"물체 살펴보기", x:49, y:43, approachPoint:5 },
-    { label:"문 열기", x:52, y:63, approachPoint:6 },
-    { label:"책장 살펴보기", x:39, y:55, approachPoint:7 }
-  ];
-  const roomBlue = [
-    { x:42, y:49 }, { x:78, y:68 }, { x:79, y:20 }, { x:66, y:82 }
-  ];
-  const roomRed = [
-    { label:"달력 열기", x:71, y:20, action:"calendar", approachPoint:2, labelPosition:"below-left" },
-    { label:"침대에서 자기", x:34, y:49, action:"sleep", approachPoint:0, labelPosition:"left" },
-    { label:"나가기", x:58, y:82, action:"exit-room", approachPoint:3, labelPosition:"above" }
-  ];
-  const outsideRed = [...detailRed,{label:"내 방으로 이동",x:78,y:20,action:"enter-room",approachPoint:8}];
+  const wholePoints = [];
+  const detailBlue = [];
+  const detailRed = [];
+  const roomBlue = [];
+  const roomRed = [];
+  const outsideRed = [];
   const REFERENCE_MOVE_MS = 4480;
   const activeMoves = new WeakMap();
   let chatRevealed = false;
@@ -46,25 +33,21 @@
   }
   function renderBoard(kind) {
     const state=window.GHData.state;const isWhole=kind==="whole";const scene=isWhole?"whole":state.map.detailScene||"room";const isRoom=scene==="room";const points=isWhole?wholePoints:(isRoom?roomBlue:detailBlue);const active=Number(isWhole?state.map.wholePoint:(isRoom?state.map.roomPoint:state.map.detailPoint))||0;
-    const name=state.character?.name||"내 캐릭터";const sleeping=Boolean(state.status.sleepStartedAt);const marker=isWhole?{x:50,y:28}:sleeping&&isRoom?{x:23.5,y:42.5}:points[Math.min(active,points.length-1)];const messages=(state.areaMessages||[]).filter((item)=>!item.scene||item.scene===scene);
+    const sleeping=Boolean(state.status.sleepStartedAt);const marker=points[Math.min(active,points.length-1)];const messages=(state.areaMessages||[]).filter((item)=>!item.scene||item.scene===scene);
     const last=state.map.lastClickedMarker;const selectedMove=last?.kind==="move"&&last.scene===scene?Number(last.index):-1;
     const occupied=movementOccupancy(scene,points.length);
     const moveButtons=points.map((p,index)=>`<button class="map-point ${isWhole?"green":"blue"}${selectedMove===index?" was-clicked":""}${occupied.has(index)?" occupied":""}" type="button" data-map-point="${kind}" data-point-index="${index}" style="${coords(p)}" aria-label="${isWhole?"내 방으로 이동":"이동"}"><span class="map-dot"></span></button>`).join("");
     const interactionPoints=isWhole?[]:(isRoom?roomRed:outsideRed);
     const interactionSelected=last?.kind==="interaction"&&last.scene===scene?Number(last.index):-1;
     const redButtons=interactionPoints.map((p,index)=>`<button class="map-point red label-${p.labelPosition||"below"}${interactionSelected===index?" was-clicked":""}" type="button" data-interaction-point="${index}" style="${coords(p)}" aria-label="${p.label}"><span class="map-dot"></span><span class="map-point-label">${escapeHtml(p.label)}</span></button>`).join("");
-    const event=state.events.find((item)=>item.demo);const remote=state.remotePresence||[];const roomRemote=remote.filter((person)=>person.scene==="room"||person.location==="내 방");const people=[{name,portrait:state.character?.portrait,arrivedAt:Number(state.map.arrivedAt||0),mine:true},{name:state.demoAccount.name,portrait:null,arrivedAt:Number(state.demoAccount.arrivedAt||1)},{name:state.demoAccount2.name,portrait:null,arrivedAt:Number(state.demoAccount2.arrivedAt||2)},...roomRemote].sort((a,b)=>a.arrivedAt-b.arrivedAt);const latest=people[people.length-1];const zoom=Math.max(80,Math.min(400,Number(state.map.wholeZoom)||100));const wholeOccupants=`<div class="whole-occupants" aria-label="내 방에 있는 사람"><button type="button" class="whole-name" data-profile-name="${escapeHtml(latest.name)}">${escapeHtml(latest.name)}</button>${stampMarkup({x:50,y:28},latest.name,{whole:true,portrait:latest.portrait})}${people.length>1?`<span class="whole-count">${escapeHtml(latest.name)}님 외 ${people.length-1}명</span>`:""}${event?`<span class="whole-event">${escapeHtml(event.title)}</span>`:""}</div>`;
-    const roomArt=isRoom?`<div class="room-art${sleeping?" sleeping":""}" aria-hidden="true"><div class="room-back-wall"></div><div class="room-bed"><span>침대</span></div><div class="room-desk"><span>책상</span></div><div class="room-calendar">달력</div><div class="room-door"><span>문</span></div></div>`:isWhole?`<div class="whole-room-card${event?" event-active":""}" aria-label="내 방, ${people.length}명">${wholeOccupants}<span class="whole-room-name">내 방</span></div>`:"";
+    const zoom=Math.max(80,Math.min(400,Number(state.map.wholeZoom)||100));
     const roomClass=isRoom?" room-interior":"";const locationLabel=isWhole?"전체맵":(isRoom?"내방":"방 밖 · 임시 맵");
-    const presence=kind==="detail"&&!sleeping?renderOccupants(scene,points,active):"";
-    const groupedMine=kind==="detail"&&!sleeping&&presence.includes(`data-mine-group="${active}"`);
-    const boardContent=`${roomArt}${moveButtons}${redButtons}${presence}${isWhole?"":stampMarkup(marker,name,{sleeping,grouped:groupedMine})}${isWhole?"":renderSpeechBubbles(messages,marker)}`;
+    const boardContent=`${moveButtons}${redButtons}`;
     const layer=isWhole?`<div class="map-layer" style="--map-zoom:${zoom/100}">${boardContent}</div>`:boardContent;
-    const fixedMapText=isWhole?`<span class="map-hint">검은 원은 구역 이동</span><span class="map-location-label">전체맵</span>`:"";
+    const fixedMapText=isWhole?`<span class="map-location-label">전체맵</span>`:"";
     const chat=kind==="detail"?renderMapChat(messages):"";
     return `<div class="map-board${roomClass}${isWhole&&zoom>=150?" zoomed-in":""}" data-map-board="${kind}" data-scene="${scene}" data-zoom="${zoom}" aria-label="${locationLabel}">${layer}${fixedMapText}${chat}</div>
-    ${isWhole?`<div class="map-zoom-readout" data-zoom-value aria-live="polite">${zoom}%</div>`:""}
-    ${!isWhole?`<div class="map-legend"><span><i class="legend-cross"></i>이동점</span><span><i class="legend-x"></i>상호작용점 · 가까운 이동점에 도착해야 사용 가능</span></div>`:""}`;
+    ${isWhole?`<div class="map-zoom-readout" data-zoom-value aria-live="polite">${zoom}%</div>`:""}`;
   }
   function renderOccupants(scene,points,currentIndex){
     const state=window.GHData.state;const isRoom=scene==="room";const people=[{name:state.character?.name||"내 캐릭터",portrait:state.character?.portrait,arrivedAt:Number(state.map.arrivedAt||0),index:currentIndex,mine:true},{name:state.demoAccount.name,portrait:null,arrivedAt:Number(state.demoAccount.arrivedAt||1),index:isRoom?2:1},{name:state.demoAccount2.name,portrait:null,arrivedAt:Number(state.demoAccount2.arrivedAt||2),index:isRoom?1:2},...(state.remotePresence||[]).filter((person)=>person.scene===scene).map((person)=>({name:person.name,portrait:person.portrait,arrivedAt:Number(person.arrivedAt||0),index:Math.max(0,Math.min(points.length-1,Number(person.statePoint)||0))}))];
@@ -90,8 +73,8 @@
   function setChatRevealed(value){chatRevealed=Boolean(value);document.querySelectorAll("[data-map-chat-overlay]").forEach((node)=>node.classList.toggle("is-active",chatRevealed));}
   function render(kind=window.GHData.state.map.active||"whole") {
     window.GHData.state.map.active=kind;window.GHData.save();
-    const title=kind==="whole"?"전체맵":(window.GHData.state.map.detailScene==="room"?"내방":"방 밖 · 임시 맵");
-    const note=kind==="whole"?"현재 공개된 지도는 내 방 구역이에요. 확대하면 인장과 닉네임을 볼 수 있어요.":(window.GHData.state.map.detailScene==="room"?"이동점에는 이름을 표시하지 않아요. 가까운 이동점에 도착하면 상호작용할 수 있어요.":"임시 외부 맵이에요. 이동점으로 내 방에 들어가세요.");
+    const title=kind==="whole"?"전체맵":"세부맵";
+    const note="지도는 준비 중입니다.";
     return `<div class="game-screen map-screen"><div class="status-bar">${window.GHApp.statusMarkup()}</div>
       <header class="screen-heading"><h1>${title}</h1>${kind==="detail"?"<small>현재 세부맵</small>":"<small>마우스 휠로 확대·축소</small>"}</header>
       <main class="screen-scroll"><p class="hint map-page-hint">${note}</p>${renderBoard(kind)}</main>
