@@ -389,7 +389,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible { outline:2px so
 .whole-name { padding:0; border:0; background:transparent; color:var(--ink); font-size:15px; font-weight:600; cursor:pointer; }
 .whole-seal-stamp { pointer-events:auto; cursor:pointer; }
 .map-stamp:not(.whole-seal-stamp) { width:1px; height:1px; border:0; background:transparent; color:transparent; box-shadow:none; }
-.map-stamp:not(.whole-seal-stamp)::after { top:50%; left:9px; max-width:110px; padding:2px 5px; border:1px solid #8a765d; border-radius:3px; background:#eee4d1e8; color:var(--ink); font-size:9px; white-space:nowrap; transform:translateY(-50%); }
+.map-stamp:not(.whole-seal-stamp)::after { top:calc(50% - 13px); left:10px; max-width:110px; padding:2px 5px; border:1px solid #8a765d; border-radius:0; background:#eee4d1e8; color:var(--ink); font-size:9px; white-space:nowrap; transform:none; }
 .map-stamp.sleeping-stamp:not(.whole-seal-stamp)::after { left:50%; transform:translate(-50%,-50%); }
 .map-presence-name { position:absolute; z-index:4; max-width:110px; padding:2px 5px; border:1px solid #8a765d; border-radius:3px; background:#eee4d1e8; color:var(--ink); font-size:13.5px; white-space:nowrap; transform:translate(-50%,-50%); cursor:pointer; }
 .map-presence-name.label-right { transform:translate(9px,-50%); }
@@ -444,9 +444,15 @@ body { overflow:hidden; }
 .map-screen .map-zoom-readout { display:none; }
 .map-point.was-clicked,.map-point.was-clicked:hover,.map-point.was-clicked:focus-visible { opacity:0 !important; }
 .map-point.is-moving-target .map-dot { opacity:1 !important; }
-.map-point.green .map-dot { width:14px; height:14px; border:2px solid #111; border-radius:50%; background:transparent; opacity:.48; }
+.map-point.green .map-dot { width:14px; height:14px; border:2px solid #111; border-radius:50% !important; background:transparent; opacity:.48; }
 .map-point.green:hover .map-dot,.map-point.green:focus-visible .map-dot { opacity:1; }
 .map-point.green.was-clicked .map-dot { opacity:0 !important; }
+.map-point { opacity:.55; }
+.map-point .map-dot { opacity:1; }
+.map-point:hover,.map-point:focus-visible,.map-point.is-moving-target { opacity:1; }
+.map-point.was-clicked,.map-point.was-clicked:hover,.map-point.was-clicked:focus-visible { opacity:0 !important; }
+.map-point.green .map-dot { opacity:.72; }
+.map-point.green:hover .map-dot,.map-point.green:focus-visible .map-dot { opacity:1; }
 .legend-cross,.legend-x { display:inline-block; width:14px; height:14px; margin-right:6px; vertical-align:middle; }
 .legend-cross { background:url("./assets/map-move-point.png") center/contain no-repeat; }
 .legend-x { background:url("./assets/map-interact-point.png") center/contain no-repeat; }

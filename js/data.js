@@ -24,8 +24,12 @@
       wholeSelectedPoint: -1,
       detailPoint: 0,
       roomPoint: 0,
-      roomSelectedPoint: 0,
+      roomSelectedPoint: -1,
       detailSelectedPoint: -1,
+      roomInteractionSelectedPoint: -1,
+      detailInteractionSelectedPoint: -1,
+      markerVisibilityVersion: 1,
+      lastClickedMarker: null,
       roomArrivedPoint: 0,
       detailScene: "room",
       detailArrivedPoint: 0,
@@ -65,6 +69,7 @@
         if(character.job==="포획"){character.job="퇴치";if(character.weapon==="무당의 방울")character.weapon="검";}
       }
       const map={ ...defaults.map, ...(value.map || {}) };
+      if(value.map?.markerVisibilityVersion!==1){map.roomSelectedPoint=-1;map.detailSelectedPoint=-1;map.wholeSelectedPoint=-1;map.roomInteractionSelectedPoint=-1;map.detailInteractionSelectedPoint=-1;map.lastClickedMarker=null;map.markerVisibilityVersion=1;}
       if(map.roomArrivedPoint===undefined)map.roomArrivedPoint=map.roomPoint;
       if(map.detailArrivedPoint===undefined)map.detailArrivedPoint=map.detailPoint;
       const conversations={ ...defaults.conversations, ...(value.conversations || {}) };
