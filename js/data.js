@@ -3,11 +3,18 @@
   const KEY = "gwiryeonghakgyo.static-demo.v1";
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
   const statEffects = {
-    힘: "퇴치 공격력을 높이고, 택배 상하차 알바에 유용",
-    체력: "피로가 덜 쌓임",
-    민첩: "공격 치명률을 높임. 치명 시 피해가 15~30% 증가",
-    지능: "다른 스탯 경험치 획득이 빨라지고, 조사 정보가 늘어날 수 있음",
-    섬세: "퇴치 정확도를 높이고, 도구 제작과 바느질 알바에 유용"
+    "력力": "귀신을 더 강하게 공격할 수 있다.",
+    "체體": "쉽게 지치지 않는다.",
+    "지知": "더 빨리 배운다.",
+    "정正": "더 정확한 공격을 할 수 있다.",
+    "민敏": "공격을 더 잘 피할 수 있다."
+  };
+  const statNotes = {
+    "력力": "공격력 상승",
+    "체體": "피로 증가량 감소",
+    "지知": "경험치 획득 소요 시간 감소",
+    "정正": "치명타 확률 증가",
+    "민敏": "회피 확률 증가"
   };
   const freshState = () => ({
     account: null,
@@ -64,8 +71,8 @@
       if(Number(value.statusVersion||0)<2)migratedStatus.mental=400;
       const character=value.character?{...value.character,stats:{...(value.character.stats||{})}}:null;
       if(character){
-        if(character.stats.매력!==undefined&&character.stats.민첩===undefined)character.stats.민첩=character.stats.매력;
-        delete character.stats.매력;
+        const aliases={힘:"력力",체력:"체體",지능:"지知",섬세:"정正",민첩:"민敏",매력:"민敏"};
+        for(const [oldName,newName] of Object.entries(aliases)){if(character.stats[oldName]!==undefined){if(character.stats[newName]===undefined)character.stats[newName]=character.stats[oldName];delete character.stats[oldName];}}
         if(character.job==="포획"){character.job="퇴치";if(character.weapon==="무당의 방울")character.weapon="검";}
       }
       const map={ ...defaults.map, ...(value.map || {}) };
@@ -133,5 +140,5 @@
     save();return true;
   }
   function unreadCount() { return state.alerts.filter((item)=>!item.read).length; }
-  window.GHData = { KEY, alphabet, statEffects, freshState, load, save, clear, get state(){return state;}, setState, todayKey, generateCode, addRecord, addAlert, unreadCount, ensureDemoData, startSleep, applySleepRecovery };
+  window.GHData = { KEY, alphabet, statEffects, statNotes, freshState, load, save, clear, get state(){return state;}, setState, todayKey, generateCode, addRecord, addAlert, unreadCount, ensureDemoData, startSleep, applySleepRecovery };
 })();

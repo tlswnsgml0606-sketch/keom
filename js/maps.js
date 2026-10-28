@@ -48,7 +48,8 @@
     const state=window.GHData.state;const isWhole=kind==="whole";const scene=isWhole?"whole":state.map.detailScene||"room";const isRoom=scene==="room";const points=isWhole?wholePoints:(isRoom?roomBlue:detailBlue);const active=Number(isWhole?state.map.wholePoint:(isRoom?state.map.roomPoint:state.map.detailPoint))||0;
     const name=state.character?.name||"내 캐릭터";const sleeping=Boolean(state.status.sleepStartedAt);const marker=isWhole?{x:50,y:28}:sleeping&&isRoom?{x:23.5,y:42.5}:points[Math.min(active,points.length-1)];const messages=(state.areaMessages||[]).filter((item)=>!item.scene||item.scene===scene);
     const last=state.map.lastClickedMarker;const selectedMove=last?.kind==="move"&&last.scene===scene?Number(last.index):-1;
-    const moveButtons=points.map((p,index)=>`<button class="map-point ${isWhole?"green":"blue"}${selectedMove===index?" was-clicked":""}" type="button" data-map-point="${kind}" data-point-index="${index}" style="${coords(p)}" aria-label="${isWhole?"내 방으로 이동":"이동"}"><span class="map-dot"></span></button>`).join("");
+    const occupied=movementOccupancy(scene,points.length);
+    const moveButtons=points.map((p,index)=>`<button class="map-point ${isWhole?"green":"blue"}${selectedMove===index?" was-clicked":""}${occupied.has(index)?" occupied":""}" type="button" data-map-point="${kind}" data-point-index="${index}" style="${coords(p)}" aria-label="${isWhole?"내 방으로 이동":"이동"}"><span class="map-dot"></span></button>`).join("");
     const interactionPoints=isWhole?[]:(isRoom?roomRed:outsideRed);
     const interactionSelected=last?.kind==="interaction"&&last.scene===scene?Number(last.index):-1;
     const redButtons=interactionPoints.map((p,index)=>`<button class="map-point red label-${p.labelPosition||"below"}${interactionSelected===index?" was-clicked":""}" type="button" data-interaction-point="${index}" style="${coords(p)}" aria-label="${p.label}"><span class="map-dot"></span><span class="map-point-label">${escapeHtml(p.label)}</span></button>`).join("");
@@ -69,6 +70,18 @@
     const state=window.GHData.state;const isRoom=scene==="room";const people=[{name:state.character?.name||"내 캐릭터",portrait:state.character?.portrait,arrivedAt:Number(state.map.arrivedAt||0),index:currentIndex,mine:true},{name:state.demoAccount.name,portrait:null,arrivedAt:Number(state.demoAccount.arrivedAt||1),index:isRoom?2:1},{name:state.demoAccount2.name,portrait:null,arrivedAt:Number(state.demoAccount2.arrivedAt||2),index:isRoom?1:2},...(state.remotePresence||[]).filter((person)=>person.scene===scene).map((person)=>({name:person.name,portrait:person.portrait,arrivedAt:Number(person.arrivedAt||0),index:Math.max(0,Math.min(points.length-1,Number(person.statePoint)||0))}))];
     const groups=new Map();for(const person of people){const index=Math.max(0,Math.min(points.length-1,Number(person.index)||0));if(!groups.has(index))groups.set(index,[]);groups.get(index).push(person);}
     return [...groups].map(([index,members])=>{const ordered=members.sort((a,b)=>a.arrivedAt-b.arrivedAt);const latest=ordered.at(-1);if(members.length===1&&latest.mine)return "";const p=points[index];const grouped=members.length>1;const text=grouped?`${latest.name}님 외 ${members.length-1}명`:latest.name;return `<button type="button" class="map-presence-name${grouped?" grouped":""}"${grouped&&latest.mine?` data-mine-group="${index}"`:""} data-profile-name="${escapeHtml(latest.name)}" style="${coords(p)}">${escapeHtml(text)}</button>`;}).join("");
+  }
+  function movementOccupancy(scene,pointCount){
+    const state=window.GHData.state;const map=state.map;const isRoom=scene==="room";const result=new Set();
+    const ownArrival=map[isRoom?"roomArrivedPoint":"detailArrivedPoint"];
+    if(!state.status.sleepStartedAt&&ownArrival!==null&&ownArrival!==undefined)result.add(Number(ownArrival));
+    result.add(isRoom?2:1);result.add(isRoom?1:2);
+    for(const person of state.remotePresence||[])if(person.scene===scene)result.add(Math.max(0,Math.min(pointCount-1,Number(person.statePoint)||0)));
+    return result;
+  }
+  function updateOccupiedMarkers(board,scene){
+    const occupied=movementOccupancy(scene,scene==="room"?roomBlue.length:detailBlue.length);
+    board.querySelectorAll(".map-point.blue").forEach((button)=>button.classList.toggle("occupied",occupied.has(Number(button.dataset.pointIndex))));
   }
   function renderMapChat(messages){
     const entries=messages.map((item)=>`<div class="map-speech ${isMine(item)?"mine":"other"}"><span class="speech-name">${escapeHtml(item.name)}:</span>${escapeHtml(item.text)}</div>`).join("");
@@ -93,16 +106,17 @@
     const boardRect=board.getBoundingClientRect();const stampRect=stamp.getBoundingClientRect();
     const previous={x:((stampRect.left+stampRect.width/2-boardRect.left)/boardRect.width)*100,y:((stampRect.top+stampRect.height/2-boardRect.top)/boardRect.height)*100};
     const previousIndex=Number(state.map[arrivedKey]??state.map[key]??0);const alreadyMoving=activeMoves.has(stamp);board.querySelectorAll(".map-point.was-clicked").forEach((node)=>node.classList.remove("was-clicked"));board.querySelectorAll(".map-point.is-moving-target").forEach((node)=>node.classList.remove("is-moving-target"));board.querySelector(`[data-map-point][data-point-index="${index}"]`)?.classList.add("is-moving-target");state.map.lastClickedMarker={kind:"move",scene,index};state.map[selectionKey]=index;state.map[key]=index;state.map[arrivedKey]=null;state.map.currentPoint="이동 중";window.GHData.save();
-    if(!alreadyMoving&&Math.hypot(previous.x-point.x,previous.y-point.y)<0.5){state.map[arrivedKey]=index;board.querySelector(`[data-map-point][data-point-index="${index}"]`)?.classList.remove("is-moving-target");board.querySelector(`[data-map-point][data-point-index="${index}"]`)?.classList.add("was-clicked");window.GHData.save();return;}
+    if(!alreadyMoving&&Math.hypot(previous.x-point.x,previous.y-point.y)<0.5){state.map[arrivedKey]=index;board.querySelector(`[data-map-point][data-point-index="${index}"]`)?.classList.remove("is-moving-target");board.querySelector(`[data-map-point][data-point-index="${index}"]`)?.classList.add("was-clicked");updateOccupiedMarkers(board,scene);window.GHData.save();return;}
     board.querySelector("[data-route]")?.remove();
     if(previous.x!==point.x||previous.y!==point.y){
       board.querySelectorAll(".footstep").forEach((step)=>step.remove());
       const waypoints=scene==="room"?findRoomRoute(previous,point,board):[];
-      if(waypoints===null){toastRouteBlocked();state.map[key]=previousIndex;state.map[arrivedKey]=previousIndex;state.map[selectionKey]=previousIndex;board.querySelector(`[data-map-point][data-point-index="${index}"]`)?.classList.remove("is-moving-target");board.querySelector(`[data-map-point][data-point-index="${previousIndex}"]`)?.classList.add("was-clicked");window.GHData.save();return;}
+      if(waypoints===null){toastRouteBlocked();state.map[key]=previousIndex;state.map[arrivedKey]=previousIndex;state.map[selectionKey]=previousIndex;board.querySelector(`[data-map-point][data-point-index="${index}"]`)?.classList.remove("is-moving-target");board.querySelector(`[data-map-point][data-point-index="${previousIndex}"]`)?.classList.add("was-clicked");updateOccupiedMarkers(board,scene);window.GHData.save();return;}
+      updateOccupiedMarkers(board,scene);
       const routePoints=[previous,...waypoints,point].filter((item)=>Number.isFinite(Number(item.x))&&Number.isFinite(Number(item.y)));
       const name=state.character?.name||"내 캐릭터";stamp.dataset.name=name;stamp.textContent=name.slice(0,1);
-      animateAlongRoute(stamp,board,routePoints,detailBlue,()=>{state.map[arrivedKey]=index;state.map.arrivedAt=Date.now();window.GHData.save();window.GHSync?.publish("map.position",{scene,statePoint:index,name:state.character?.name}).catch(()=>{});board.querySelectorAll(".map-point.is-moving-target").forEach((button)=>button.classList.remove("is-moving-target"));board.querySelector(`[data-map-point][data-point-index="${index}"]`)?.classList.add("was-clicked");setTimeout(()=>board.querySelectorAll(".footstep").forEach((step)=>{step.style.opacity="0";setTimeout(()=>step.remove(),450);}),900);});
-    }else{state.map[arrivedKey]=index;window.GHData.save();}
+      animateAlongRoute(stamp,board,routePoints,detailBlue,()=>{state.map[arrivedKey]=index;state.map.arrivedAt=Date.now();window.GHData.save();window.GHSync?.publish("map.position",{scene,statePoint:index,name:state.character?.name}).catch(()=>{});board.querySelectorAll(".map-point.is-moving-target").forEach((button)=>button.classList.remove("is-moving-target"));board.querySelector(`[data-map-point][data-point-index="${index}"]`)?.classList.add("was-clicked");updateOccupiedMarkers(board,scene);setTimeout(()=>board.querySelectorAll(".footstep").forEach((step)=>{step.style.opacity="0";setTimeout(()=>step.remove(),450);}),900);});
+    }else{state.map[arrivedKey]=index;updateOccupiedMarkers(board,scene);window.GHData.save();}
   }
   function findRoomRoute(from,to,board){
     const bounds=board.getBoundingClientRect();

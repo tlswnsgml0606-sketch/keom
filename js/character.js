@@ -3,7 +3,7 @@
   const stats = Object.entries(window.GHData.statEffects);
   const cropSources = new WeakMap();
   const statRows = () => stats.map(([name,effect]) => `<div class="stat-row">
-    <span class="stat-name">${name}</span><span class="stat-effect">${effect}</span>
+    <span class="stat-name">${name}</span><span class="stat-effect"><span>${effect}</span><small class="stat-effect-note">${window.GHData.statNotes[name]}</small></span>
     <button class="step-button" type="button" data-stat-change="-1" data-stat="${name}" aria-label="${name} 1 감소">−</button>
     <b class="stat-value" data-stat-value="${name}">0</b>
     <button class="step-button" type="button" data-stat-change="1" data-stat="${name}" aria-label="${name} 1 증가">+</button>
