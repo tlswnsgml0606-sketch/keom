@@ -485,6 +485,20 @@ body { overflow:hidden; }
 /* Occupied movement points remain visible under the player's nameplate. */
 .map-point.occupied,.map-point.was-clicked.occupied,.map-point.was-clicked.occupied:hover { opacity:1 !important; }
 .map-point.occupied .map-dot,.map-point.was-clicked.occupied .map-dot { opacity:1 !important; }
+.direction-pad { display:none; }
+.touch-move-hint { display:none; }
+@media (max-width:899px), (hover:none) and (pointer:coarse) {
+ .desktop-move-hint { display:none; }
+ .touch-move-hint { display:inline; }
+ .direction-pad { position:absolute; z-index:20; right:14px; bottom:14px; display:grid; width:144px; height:144px; grid-template:repeat(3,1fr)/repeat(3,1fr); touch-action:none; user-select:none; }
+ .direction-pad button { display:grid; place-items:center; padding:0; border:2px solid #353638; border-radius:7px !important; background:linear-gradient(145deg,#a6a6a6,#686a6b); color:#242526; font:700 23px/1 sans-serif; text-shadow:0 1px #ccc; box-shadow:inset 1px 1px 2px #eee8, inset -2px -2px 3px #34353680; }
+ .direction-pad button.pressed { background:linear-gradient(145deg,#696b6c,#9a9b9b); box-shadow:inset 2px 2px 4px #343536a0; }
+ .direction-pad button[data-direction="up"] { grid-area:1/2; border-radius:8px 8px 0 0; }
+ .direction-pad button[data-direction="left"] { grid-area:2/1; border-radius:8px 0 0 8px; }
+ .direction-pad span { grid-area:2/2; border:2px solid #353638; border-radius:50% !important; background:radial-gradient(circle at 35% 30%,#777a7b,#3d3f40 72%); }
+ .direction-pad button[data-direction="right"] { grid-area:2/3; border-radius:0 8px 8px 0; }
+ .direction-pad button[data-direction="down"] { grid-area:3/2; border-radius:0 0 8px 8px; }
+}
 /* Square-corner treatment for all panels; preserve intentional circular icons and seals. */
 * { border-radius:0 !important; }
 .map-stamp,.whole-seal-stamp,.map-seal-image,.avatar,.brand-seal,.nav-badge,.unread-label,.unread-dot,.plus-button,.schedule-day,.weekday,.schedule-month button,.schedule-event-dot,.portrait-preview,.map-group-seal,.portrait-crop-window,.default-avatar-head,.account-default-portrait::before,.search-icon::before { border-radius:50% !important; }
