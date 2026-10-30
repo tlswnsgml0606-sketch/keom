@@ -14,6 +14,7 @@
   const today=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
   function activity(){const s=state();s.activity??={};Object.assign(s.activity,{classSessions:{},gardenRest:null,gardenBenches:{},fountainDays:{},waterDays:{},...s.activity});return s.activity;}
   function sceneId(){const s=state();return s.map.currentScene||s.map.detailScene||roomId(currentBuilding(),1,"1-1");}
+  function currentPos(){const m=state().map,id=sceneId();m.playerPositions??={};if(!m.playerPositions[id])m.playerPositions[id]={x:48,y:76};return m.playerPositions[id];}
   function currentBuilding(){return state().map.building==="rear"?"rear":"front";}
   function labelScene(id){
     if(id.startsWith("room/"))return "내 방";
