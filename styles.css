@@ -439,7 +439,6 @@ html,body,#app { width:100%; min-height:100%; margin:0; }
 /* The supplied map drawings are the artwork; DOM objects remain only as collision hitboxes. */
 .map-screen .screen-scroll { overflow:auto; }
 .map-screen .map-board[data-map-board="detail"] { flex:0 0 auto; width:100%; height:auto; min-height:0; aspect-ratio:var(--map-ratio, 4 / 3); overflow:hidden; }
-.scene-art { background:#fff var(--map-art) center / 100% 100% no-repeat !important; border:0 !important; }
 .scene-art::before,.scene-art .checker-floor,.scene-art .stair-steps,.scene-art .teacher-desk { display:none !important; }
 .scene-art .world-object { opacity:0; pointer-events:none; }
 .map-screen .whole-map-board { overflow:auto; }
@@ -449,12 +448,10 @@ html,body,#app { width:100%; min-height:100%; margin:0; }
 .campus-map .building-tabs button[aria-pressed="true"] { background:#ddd3c0; font-weight:700; }
 .campus-map-scroll { position:relative; flex:1 1 auto; min-height:0; overflow:auto; }
 .campus-map-layout { position:relative; display:block; width:100%; min-height:0; aspect-ratio:685 / 370; border:0; background:transparent; transform-origin:top left; }
-.whole-map-image { display:block; width:100%; height:100%; object-fit:fill; }
 .whole-map-hotspots { position:absolute; inset:0; }
 .whole-map-hotspot { position:absolute; display:block; min-width:0; min-height:0; padding:0; border:0; background:transparent; color:transparent; cursor:pointer; }
 .whole-map-hotspot:hover,.whole-map-hotspot:focus-visible { outline:2px solid #28251e; background:#ddcfad35; }
 .whole-hotspot-label { position:absolute; inset:0; display:grid; place-items:center; color:transparent; }
-.whole-map-text-fix { position:absolute; left:64.1%; top:19%; width:11.5%; height:9.5%; display:grid; place-items:center; background:#fff; color:#222; font-size:clamp(8px,1vw,14px); font-weight:600; }
 .whole-map-hotspot.has-occupants { display:grid; place-items:center; }
 .campus-map .campus-occupants { position:absolute; inset:0; display:grid; place-content:center; gap:2px; color:#25231f; font-size:clamp(8px,.9vw,13px); text-align:center; text-shadow:0 0 3px #fff,0 0 4px #fff; pointer-events:none; }
 .campus-map .campus-occupants i { display:none; width:28px; height:28px; margin:auto; overflow:hidden; place-items:center; border:1px solid white; border-radius:50%; background:#806c55; color:white; font-style:normal; }
@@ -462,9 +459,19 @@ html,body,#app { width:100%; min-height:100%; margin:0; }
 .campus-map.zoom-150 .campus-occupants i { display:grid; }
 .campus-warning { flex:none; margin:0; padding:5px 8px 8px; background:var(--paper); color:var(--ink); text-align:center; font-size:15px; }
 .campus-map-scroll .campus-map-layout { margin:0 auto; }
-.map-label-correction { position:absolute; z-index:6; display:grid; place-items:center; height:8.2%; background:#fff; color:#111; font-family:Jeom,serif; font-size:clamp(12px,2vw,19px); line-height:1; pointer-events:none; }
-.map-label-correction.correction-delicate { left:45.6%; top:17.3%; width:11.1%; }
-.map-label-correction.correction-agility { left:77.2%; top:17.3%; width:9%; }
+
+/* Draw the floor plans as thin ink lines directly over the site's paper texture. */
+.map-board::before { display:none !important; }
+.map-screen .screen-scroll { align-items:center; overflow:hidden; }
+.map-screen .map-page-hint { align-self:stretch; }
+.map-screen .detail-map-board { flex:none !important; max-width:calc(100vw - 28px); max-height:calc(100dvh - 190px); margin:0 auto; aspect-ratio:auto !important; background:transparent; }
+.scene-art { background:transparent !important; border:0 !important; }
+.scene-art::before,.scene-art .checker-floor,.scene-art .stair-steps,.scene-art .teacher-desk { display:none !important; }
+.map-ink-art,.whole-map-svg { display:block; width:100%; height:100%; overflow:visible; background:transparent; }
+.ink-strokes { fill:none; stroke:#302920; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; opacity:.82; }
+.ink-strokes text { fill:#342d25; stroke:none; font-family:Jeom,serif; font-weight:400; }
+.campus-map-layout { display:block; width:100%; min-height:0; aspect-ratio:685 / 370; border:0; background:transparent; }
+.campus-map-layout .whole-map-svg { position:absolute; inset:0; }
 @media(max-width:700px) {
   .map-screen .map-board[data-map-board="whole"] { overflow:auto; }
   .campus-map { min-height:100%; height:auto; }
@@ -754,4 +761,21 @@ body { overflow:hidden; }
  .map-player-name { max-width:100px; font-size:12px; }
  .map-interaction-point { width:20px; height:20px; }
  .scene-art.art-hall::before,.scene-art.art-room2::before,.scene-art.art-room3::before,.scene-art.art-class-hall::before,.scene-art.art-classroom::before,.scene-art.art-garden::before,.scene-art.art-auditorium::before,.scene-art.art-office::before,.scene-art.art-living::before,.scene-art.art-training::before,.scene-art.art-duel::before,.scene-art.art-checker::before { border-width:1.5px; }
+}
+
+/* Final map surface: transparent ink line art over the existing paper page. */
+.map-board::before { display:none !important; }
+.map-screen .screen-scroll { align-items:center; overflow:hidden; }
+.map-screen .map-page-hint { align-self:stretch; }
+.map-screen .detail-map-board { flex:none !important; width:auto; max-width:calc(100vw - 28px); max-height:calc(100dvh - 190px); margin:0 auto; overflow:visible !important; aspect-ratio:auto !important; background:transparent; }
+.scene-art { background:transparent !important; border:0 !important; }
+.scene-art::before,.scene-art .checker-floor,.scene-art .stair-steps,.scene-art .teacher-desk { display:none !important; }
+.map-ink-art,.whole-map-svg { display:block; width:100%; height:100%; overflow:visible; background:transparent; }
+.ink-strokes { fill:none; stroke:#302920; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; opacity:.82; }
+.ink-strokes text { fill:#342d25; stroke:none; font-family:Jeom,serif; font-weight:400; }
+.campus-map-layout { display:block; width:100%; min-height:0; aspect-ratio:685 / 370; border:0; background:transparent; }
+.campus-map-layout .whole-map-svg { position:absolute; inset:0; }
+.whole-map-text-fix,.map-label-correction { display:none !important; }
+@media (max-width:899px), (hover:none) and (pointer:coarse) {
+ .map-screen .direction-pad { position:fixed; z-index:30; right:12px; bottom:72px; }
 }
