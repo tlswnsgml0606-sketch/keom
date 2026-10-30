@@ -40,11 +40,17 @@
       roomArrivedPoint: 0,
       detailScene: "room",
       detailArrivedPoint: 0,
-      currentPoint: "침대 옆"
+      currentPoint: "침대 옆",
+      building: "front",
+      floor: 1,
+      currentScene: "room"
     },
+    activity: { classSessions: {}, activeClassSession: null, gardenRest: null, gardenBenches: {}, fountainDays: {}, waterDays: {} },
     records: [],
     areaMessages: [],
     conversations: { 대화: [], 사담: [] },
+    firstChatContacts: [],
+    pendingFirstChatAwards: [],
     selectedChat: "임시",
     alerts: [],
     alertFilter: "전체",
@@ -76,12 +82,14 @@
         if(character.job==="포획"){character.job="퇴치";if(character.weapon==="무당의 방울")character.weapon="검";}
       }
       const map={ ...defaults.map, ...(value.map || {}) };
+      const activity={ ...defaults.activity, ...(value.activity || {}) };
       if(value.map?.markerVisibilityVersion!==1){map.roomSelectedPoint=-1;map.detailSelectedPoint=-1;map.wholeSelectedPoint=-1;map.roomInteractionSelectedPoint=-1;map.detailInteractionSelectedPoint=-1;map.lastClickedMarker=null;map.markerVisibilityVersion=1;}
       if(map.roomArrivedPoint===undefined)map.roomArrivedPoint=map.roomPoint;
       if(map.detailArrivedPoint===undefined)map.detailArrivedPoint=map.detailPoint;
       const conversations={ ...defaults.conversations, ...(value.conversations || {}) };
       delete conversations.귓속말;
-      return { ...defaults, ...value, character, pendingAccount:value.pendingAccount||null, statusVersion:3, status:migratedStatus, map, conversations, demoAccount2:value.demoAccount2||defaults.demoAccount2, events:Array.isArray(value.events)?value.events:[], letters:Array.isArray(value.letters)?value.letters:[], inventory:Array.isArray(value.inventory)?value.inventory:[], currency:Number(value.currency)||0, areaMessages:Array.isArray(value.areaMessages)?value.areaMessages:[], whisperMessages:Array.isArray(value.whisperMessages)?value.whisperMessages:[], remotePresence:Array.isArray(value.remotePresence)?value.remotePresence:[], remoteAccounts:Array.isArray(value.remoteAccounts)?value.remoteAccounts:[] };
+      const priorContacts=Object.values(conversations).flat().filter((item)=>item?.with&&!String(item.id||"").startsWith("demo")).map((item)=>item.with);
+      return { ...defaults, ...value, character, pendingAccount:value.pendingAccount||null, statusVersion:3, status:migratedStatus, map, activity, conversations, firstChatContacts:Array.isArray(value.firstChatContacts)?value.firstChatContacts:[...new Set(priorContacts)], pendingFirstChatAwards:Array.isArray(value.pendingFirstChatAwards)?value.pendingFirstChatAwards:[], demoAccount2:value.demoAccount2||defaults.demoAccount2, events:Array.isArray(value.events)?value.events:[], letters:Array.isArray(value.letters)?value.letters:[], inventory:Array.isArray(value.inventory)?value.inventory:[], currency:Number(value.currency)||0, areaMessages:Array.isArray(value.areaMessages)?value.areaMessages:[], whisperMessages:Array.isArray(value.whisperMessages)?value.whisperMessages:[], remotePresence:Array.isArray(value.remotePresence)?value.remotePresence:[], remoteAccounts:Array.isArray(value.remoteAccounts)?value.remoteAccounts:[] };
     } catch (_error) {
       return freshState();
     }

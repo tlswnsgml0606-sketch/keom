@@ -2,6 +2,7 @@
   "use strict";
   const app=document.getElementById("app");
   const navItems=[["전체맵","⌖"],["세부맵","⌂"],["기록","≡"],["채팅","▤"],["알림","◉"],["계정","○"]];
+  let firstChatDraft=null;
   function statusMarkup(){const status=GHData.state.status;return `<span>피로 ${Number(status.fatigue)||0}/100</span><span>생명 ${Number(status.life)||0}/100</span><span>정신력 ${Number(status.mental)||0}/400</span>`;}
   function navMarkup(active){
     return `<nav class="bottom-nav" aria-label="주 메뉴">${navItems.map(([label,glyph])=>`<button class="nav-button" type="button" data-page="${label}" aria-current="${active===label?"page":"false"}"><span class="nav-icon">${glyph}${label==="알림"&&GHData.unreadCount()?`<i class="nav-badge">${GHData.unreadCount()}</i>`:""}</span>${label}</button>`).join("")}</nav>`;
@@ -15,9 +16,38 @@
     const page=state.page||"전체맵";
     const content=page==="전체맵"?GHMaps.render("whole"):page==="세부맵"?GHMaps.render("detail"):page==="기록"?GHPages.renderRecords():page==="채팅"?GHPages.renderChat():page==="알림"?GHPages.renderAlerts():GHPages.renderAccount();
     app.innerHTML=`<div class="app-shell">${content}</div>`;
+    queueMicrotask(showPendingFirstChatAward);
   }
   function toast(message){let stack=document.querySelector(".game-screen .toast-stack");if(!stack){const screen=document.querySelector(".game-screen");if(screen){stack=document.createElement("div");stack.className="toast-stack";stack.setAttribute("aria-live","polite");screen.insertBefore(stack,screen.children[1]||null);}else{stack=document.createElement("div");stack.className="toast-stack";stack.setAttribute("aria-live","polite");document.body.append(stack);}}const el=document.createElement("div");el.className="toast";el.setAttribute("role","status");el.textContent=message;stack.append(el);setTimeout(()=>el.remove(),2600);}
   function openDialog(title,html,note=""){const dialog=document.getElementById("message-dialog");if(dialog.open)dialog.close();const heading=document.getElementById("dialog-title");heading.firstChild.textContent=title;const titleNote=heading.querySelector(".dialog-title-note");if(titleNote){titleNote.textContent=note;titleNote.hidden=!note;}document.getElementById("dialog-body").innerHTML=html;dialog.showModal();}
+  function statAwardMarkup(buttonAttr,buttonText="확인"){
+    const options=Object.keys(GHData.statEffects).map((key)=>`<option value="${escapeHtml(key)}">${escapeHtml(key)}</option>`).join("");
+    return `<p>새로운 사람과 처음 대화했어요. 게임에서 경험치 50/100을 지원합니다.</p><label class="first-chat-stat">올릴 스탯 선택<select data-firstchat-stat>${options}</select></label><div class="dialog-actions"><button class="button-quiet" type="button" data-firstchat-cancel>취소</button><button class="button-primary" type="button" ${buttonAttr}>${buttonText}</button></div>`;
+  }
+  function showPendingFirstChatAward(){
+    const dialog=document.getElementById("message-dialog"),pending=GHData.state.pendingFirstChatAwards?.[0];
+    if(!pending||dialog.open||!GHData.state.character)return;
+    openDialog("첫 대화 경험치 지원",statAwardMarkup(`data-firstchat-incoming="${escapeHtml(pending.pairId)}"`),pending.contact);
+  }
+  function awardFirstChatExperience(stat,contact){
+    const character=GHData.state.character;if(!character)return;
+    character.stats??={};character.experience??={};let xp=(Number(character.experience[stat])||0)+50;
+    let total=Object.values(character.stats).reduce((sum,value)=>sum+(Number(value)||0),0);
+    if(xp>=100&&Number(character.stats[stat]||0)<200&&total<200){xp-=100;character.stats[stat]=(Number(character.stats[stat])||0)+1;}
+    character.experience[stat]=Math.min(100,xp);
+    GHData.addRecord("상태 변화",`게임 지원: ${contact}님과의 첫 대화 경험치 50/100을 ${stat} 스탯에 받았다. 현재 ${Number(character.stats[stat])||0}+${character.experience[stat]}/100`);
+    GHData.save();
+  }
+  function sendChatMessage({text,category,recipient,firstContact=false,stat=null}){
+    const state=GHData.state,item={id:`player-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,with:recipient,author:state.character.name,text,mine:true,createdAt:Date.now(),category};
+    (state.conversations[category]??=[]).push(item);GHSync.publish("chat.message",item).catch(()=>{});GHData.addRecord(category,`${state.character.name} → ${recipient}: ${text}`);
+    if(firstContact){
+      state.firstChatContacts??=[];state.firstChatContacts.push(recipient);awardFirstChatExperience(stat,recipient);
+      const pairId=[state.character.name,recipient].sort((a,b)=>a.localeCompare(b)).join("::");
+      GHSync.publish("chat.first-contact",{pairId,from:state.character.name,to:recipient,amount:50,source:"game",createdAt:Date.now()}).catch(()=>{});
+    }
+    GHData.save();render();
+  }
   function showError(form,message){const el=form.querySelector("[data-form-error]");if(!el)return;el.textContent=message||"";el.hidden=!message;}
   function setPage(page){GHData.state.page=page;if(page==="전체맵"){GHData.state.map.active="whole";GHData.state.map.wholeSelectedPoint=-1;GHData.state.map.lastClickedMarker=null;}if(page==="세부맵")GHData.state.map.active="detail";GHData.save();render();}
   function addAreaMessage(form){
@@ -41,6 +71,7 @@
   }
   function handleClick(event){
     GHMaps.handleMapClick(event.target);
+    if(GHMaps.handleClick(event))return;
     if(event.target.closest("[data-crop-save]")){const form=document.getElementById("character-form");if(form)GHCharacter.applyCrop(form);document.getElementById("message-dialog").close();return;}
     const authMode=event.target.closest("[data-auth-mode]");if(authMode){GHData.state.authMode=authMode.dataset.authMode;GHData.save();render();return;}
     if(event.target.closest("[data-logout]")){GHData.state.sessionActive=false;GHData.state.authMode="login";GHData.save();render();return;}
@@ -54,10 +85,13 @@
     if(mapPoint&&board){GHMaps.move(mapPoint.dataset.mapPoint,Number(mapPoint.dataset.pointIndex),board);return;}
     const redPoint=event.target.closest("[data-interaction-point]");if(redPoint){GHMaps.showInteraction(Number(redPoint.dataset.interactionPoint),redPoint.closest("[data-map-board]"));return;}
     if(event.target.closest("[data-dialog-close]")){document.getElementById("message-dialog").close();return;}
+    if(event.target.closest("[data-firstchat-cancel]")){firstChatDraft=null;document.getElementById("message-dialog").close();return;}
+    const outgoingFirstChat=event.target.closest("[data-firstchat-send]");if(outgoingFirstChat){const stat=document.querySelector("[data-firstchat-stat]")?.value;if(!firstChatDraft||!stat)return;const draft=firstChatDraft;firstChatDraft=null;document.getElementById("message-dialog").close();sendChatMessage({...draft,firstContact:true,stat});toast(`게임에서 지원한 경험치 50/100을 ${stat}에 받았어요.`);return;}
+    const incomingFirstChat=event.target.closest("[data-firstchat-incoming]");if(incomingFirstChat){const stat=document.querySelector("[data-firstchat-stat]")?.value,pairId=incomingFirstChat.dataset.firstchatIncoming;if(!stat)return;const pending=GHData.state.pendingFirstChatAwards.find((item)=>item.pairId===pairId);if(pending){GHData.state.firstChatContacts??=[];if(!GHData.state.firstChatContacts.includes(pending.contact)){GHData.state.firstChatContacts.push(pending.contact);awardFirstChatExperience(stat,pending.contact);toast(`게임에서 지원한 경험치 50/100을 ${stat}에 받았어요.`);}GHData.state.pendingFirstChatAwards=GHData.state.pendingFirstChatAwards.filter((item)=>item.pairId!==pairId);GHData.save();}document.getElementById("message-dialog").close();render();return;}
     if(event.target.closest("[data-schedule-event]")){GHMaps.showEventTeam();return;}
     if(event.target.closest("[data-team-add]")){GHMaps.showTeamLetter();return;}
     if(event.target.closest("[data-team-back]")){GHMaps.showEventTeam();return;}
-    if(event.target.closest("[data-sleep-confirm]")){const minutes=Number(document.querySelector("[data-sleep-minutes]")?.value||60);GHData.startSleep(minutes);GHSync.publish("status.update",GHData.state.status).catch(()=>{});document.getElementById("message-dialog").close();render();toast(`${minutes}분 동안 잠들었어요. 지정 시간이 지나면 깨어나요.`);return;}
+    if(event.target.closest("[data-sleep-confirm]")){const minutes=Number(document.querySelector("[data-sleep-minutes]")?.value||60);if(GHData.startSleep(minutes))GHMaps.placePlayerAtBed();GHSync.publish("status.update",GHData.state.status).catch(()=>{});document.getElementById("message-dialog").close();render();toast(`${minutes}분 동안 잠들었어요. 지정 시간이 지나면 깨어나요.`);return;}
     const reply=event.target.closest("[data-letter-reply]");if(reply){GHLetters.composeResponse(reply.dataset.letterId,reply.dataset.letterReply);return;}
     const letterBack=event.target.closest("[data-letter-open]");if(letterBack){GHLetters.open(letterBack.dataset.letterOpen);return;}
     if(event.target.closest("[data-letter-send]")){if(GHLetters.sendResponse()){document.getElementById("message-dialog").close();render();toast("답장 편지를 보냈어요.");}return;}
@@ -90,7 +124,7 @@
   function highlightText(value,query){const text=String(value??"");if(!query)return escapeHtml(text);const lower=text.toLocaleLowerCase(),needle=query.toLocaleLowerCase();let at=0,out="";while(true){const found=lower.indexOf(needle,at);if(found<0){out+=escapeHtml(text.slice(at));break;}out+=escapeHtml(text.slice(at,found))+`<strong class="search-highlight">${escapeHtml(text.slice(found,found+needle.length))}</strong>`;at=found+needle.length;}return out;}
   function handleSubmit(event){
     const form=event.target;
-    if(form.id==="chat-form"){event.preventDefault();const text=String(new FormData(form).get("message")||"").trim();if(!text)return;const state=GHData.state;const category=state.chatFilter||"대화";const recipient=state.selectedChat||"임시";const item={id:`player-${Date.now()}`,with:recipient,author:state.character.name,text,mine:true,createdAt:Date.now(),category};(state.conversations[category]??=[]).push(item);GHSync.publish("chat.message",item).catch(()=>{});GHData.addRecord(category,`${state.character.name} → ${recipient}: ${text}`);GHData.save();render();return;}
+    if(form.id==="chat-form"){event.preventDefault();const text=String(new FormData(form).get("message")||"").trim();if(!text)return;const state=GHData.state;const category=state.chatFilter||"대화";const recipient=state.selectedChat||"임시";const firstContact=!(state.firstChatContacts||[]).includes(recipient);if(firstContact){firstChatDraft={text,category,recipient};openDialog("첫 대화 경험치 지원",statAwardMarkup("data-firstchat-send","경험치 받고 보내기"),recipient);return;}sendChatMessage({text,category,recipient});return;}
     if(form.id==="signup-form"){
       event.preventDefault();GHAuth.submit(form).then((result)=>{if(result.error){showError(form,result.error);return;}GHData.state.page=result.login?(GHData.state.character?GHData.state.page||"전체맵":"캐릭터 설정"):"캐릭터 설정";GHData.save();render();}).catch((error)=>showError(form,error.message||"로그인 정보를 확인해 주세요."));return;
     }
@@ -137,9 +171,11 @@
   app.addEventListener("input",handleInput);
   app.addEventListener("change",handleChange);
   app.addEventListener("click",(event)=>{const result=event.target.closest("[data-search-chat-contact]");if(!result)return;GHData.state.selectedChat=result.dataset.searchChatContact;GHData.state.chatFilter=result.dataset.searchChatCategory;GHData.save();render();});
-  GHSync.subscribe("map.position",(presence)=>{if(!presence?.name||presence.name===GHData.state.character?.name)return;const state=GHData.state;state.remotePresence??=[];state.remotePresence=state.remotePresence.filter((item)=>item.name!==presence.name);state.remotePresence.push({...presence,arrivedAt:Date.now()});GHData.save();if(["전체맵","세부맵"].includes(state.page))render();});
-  GHSync.subscribe("map.speech",(message)=>{if(!message?.text||message.name===GHData.state.character?.name)return;const state=GHData.state;state.areaMessages.push({...message,mine:false,createdAt:Date.now()});GHData.addRecord("말하기",`${message.name}: ${message.text}`);if(state.page==="세부맵"&&state.map.detailScene===message.scene)render();});
-  GHSync.subscribe("chat.message",(message)=>{if(!message?.with||!message?.text)return;const state=GHData.state;const category=message.category||"대화";state.conversations[category]??=[];state.conversations[category].push({...message,mine:false});GHData.addRecord(category,`${message.author}: ${message.text}`);GHData.addAlert("채팅","새 채팅",`${message.author} 님이 메시지를 보냈어요.`,{contact:message.author,sender:message.author,message:message.text,category});if(state.page==="채팅")render();});
+  GHSync.subscribe("map.position",(presence)=>{if(!presence?.name||presence.name===GHData.state.character?.name)return;const state=GHData.state;state.remotePresence??=[];state.remotePresence=state.remotePresence.filter((item)=>item.name!==presence.name);state.remotePresence.push({...presence,arrivedAt:Number(presence.arrivedAt)||Date.now(),lastSeenAt:Date.now()});GHData.save();if(["전체맵","세부맵"].includes(state.page))render();});
+  GHSync.subscribe("map.footstep",(step)=>{if(!step?.name||step.name===GHData.state.character?.name||step.scene!==GHData.state.map.currentScene)return;GHMaps.showRemoteFootstep(step);});
+  GHSync.subscribe("map.speech",(message)=>{if(!message?.text||message.name===GHData.state.character?.name)return;const state=GHData.state;if(message.scene!==state.map.currentScene)return;state.areaMessages.push({...message,mine:false,createdAt:Date.now()});GHData.addRecord("말하기",`${message.name}: ${message.text}`);if(state.page==="세부맵"&&state.map.detailScene===message.scene)render();});
+  GHSync.subscribe("chat.message",(message)=>{const state=GHData.state;if(!message?.with||!message?.text||!message.author||message.author===state.character?.name||message.with!==state.character?.name)return;const category=message.category||"대화";state.conversations[category]??=[];state.conversations[category].push({...message,with:message.author,mine:false});GHData.addRecord(category,`${message.author}: ${message.text}`);GHData.addAlert("채팅","새 채팅",`${message.author} 님이 메시지를 보냈어요.`,{contact:message.author,sender:message.author,message:message.text,category});if(state.page==="채팅")render();});
+  GHSync.subscribe("chat.first-contact",(grant)=>{const state=GHData.state;if(!grant?.pairId||!grant?.from||!grant?.to||grant.to!==state.character?.name||grant.from===state.character?.name)return;state.firstChatContacts??=[];state.pendingFirstChatAwards??=[];if(state.firstChatContacts.includes(grant.from)||state.pendingFirstChatAwards.some((item)=>item.pairId===grant.pairId))return;state.pendingFirstChatAwards.push({pairId:grant.pairId,contact:grant.from,amount:50,source:"game",createdAt:Date.now()});GHData.addAlert("그 외","첫 대화 경험치 지원",`${grant.from}님과 처음 대화해 게임에서 경험치 50/100을 지원합니다. 올릴 스탯을 선택해 주세요.`);GHData.save();if(state.account&&state.character)showPendingFirstChatAward();});
   GHSync.subscribe("chat.whisper",(message)=>{if(!message?.with||!message?.text||message.with!==GHData.state.character?.name)return;const state=GHData.state;const incoming={...message,mine:false,scene:message.scene||"room",createdAt:Date.now()};state.whisperMessages.push(incoming);GHData.addRecord("귓속말",`${message.author}: ${message.text}`);GHData.save();if(state.page==="세부맵"&&state.map.detailScene===incoming.scene)render();});
   GHSync.subscribe("letter.sent",(letter)=>{if(!letter?.to||letter.to!==GHData.state.character?.name)return;const state=GHData.state;state.letters.unshift({...letter,read:false});GHData.addAlert("편지",letter.subject,`${letter.from} 님이 편지를 보냈어요.`,{letterId:letter.id});if(state.page==="알림")render();});
   GHSync.subscribe("letter.response",(reply)=>{if(!reply?.letterId)return;const state=GHData.state;const original=state.letters.find((item)=>item.id===reply.letterId);if(!original)return;original.status=reply.decision==="accept"?"accepted":"rejected";const event=state.events.find((item)=>item.id===original.eventId);const action=reply.decision==="accept"?"수락":"거절";const response={id:`received-reply-${Date.now()}`,type:"team-response",from:reply.from,to:state.character?.name,subject:`${event?.title||"이벤트"} 팀 ${action}`,body:reply.body||"",decision:reply.decision,eventId:original.eventId,status:"received",date:GHData.todayKey(),createdAt:Date.now()};state.letters.unshift(response);GHData.addAlert("편지",response.subject,`${reply.from} 님이 ${action} 답장을 보냈어요.`,{letterId:response.id});GHData.addRecord("편지",`${reply.from} 님이 ${original.subject}에 ${action}했어요.`);render();});

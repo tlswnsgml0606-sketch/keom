@@ -25,7 +25,7 @@
   }
   const topicCatalog = Object.freeze([
     "account.created", "character.created", "account.profile", "account.search", "account.search.results", "invite.issued", "invite.redeemed",
-    "map.position", "map.speech", "chat.message", "chat.whisper", "letter.sent", "letter.response",
+    "map.position", "map.footstep", "map.speech", "chat.message", "chat.whisper", "chat.first-contact", "letter.sent", "letter.response",
     "enrollment.quarter", "enrollment.grade", "story.trigger",
     "event.schedule", "event.team", "event.deadline", "event.result", "status.update", "state.effect", "record.append",
     "class.progress", "activity.timer", "inventory.update", "market.purchase", "auction.update"
