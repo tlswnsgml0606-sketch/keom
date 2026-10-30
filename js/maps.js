@@ -1,7 +1,7 @@
 (function () {
   "use strict";
   const heldDirections = new Set();
-  const MOVE_SPEED = 50;
+  const MOVE_SPEED = 75;
   const GAME_TIME_RATE = 4; // 수업 1시간(게임 시간) = 현실 시간 15분
   const FOOTSTEP_EVERY = 18;
   let movementFrame = 0, lastFrame = 0, lastSave = 0, footDistance = 0, footIndex = 0, chatRevealed = false;
