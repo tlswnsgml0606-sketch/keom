@@ -73,13 +73,28 @@
     } else if(scene.kind==="stairs"){
       g+=line(20,12,92,1)+line(20,98,92,88);for(let i=0;i<9;i++){const x=6+i*8.7,y=30-i*3.3,w=25-i*1.5,hh=48-i*3.2;g+=rect(x,y,w,hh);}
     } else if(scene.kind==="room2"){
-      g+=rect(4,5,38,35)+rect(7,8,24,29)+rect(32,8,9,29)+line(31,8,31,37);
-      g+=rect(4,47,38,35)+rect(7,50,24,29)+rect(32,50,9,29)+line(31,50,31,79);
-      g+=rect(64,4,32,24)+rect(69,7,4,17)+rect(75,7,20,17)+line(78,8,78,23);
-      g+=rect(64,76,32,20)+rect(43,92,16,5)+line(42,5,42,38);
+      // Trace the two beds and separate bedside units from the original 2-person room plan.
+      // The previous drawing folded the bedside units into the bed outlines, making them
+      // look like oddly shaped desks.
+      g+=rect(4,5,38,32)+line(29,5,29,37)+rect(50,6,17,30);
+      g+=rect(4,44,38,33)+line(29,44,29,77)+rect(50,45,17,30);
+      // Upper-right desk/cabinet: narrow shelf on the left, desktop and small top shelf.
+      g+=rect(65,3,30,19)+rect(68,5,7,15);
+      for(let y=8;y<19;y+=3.4)g+=line(68,y,75,y);
+      g+=rect(79,3,13,5)+line(79,8,92,8)+text(85.5,7,"달력",1.8);
+      // Lower-right writing desk and drawer/book shelf.
+      g+=rect(72,75,27,21)+rect(74,77,13,4)+rect(90,77,7,17);
+      for(let y=80;y<94;y+=3.5)g+=line(90,y,97,y);
+      g+=line(72,91,87,91)+rect(43,92,16,5);
     } else if(scene.kind==="room3"){
-      for(const x of [3,27,51]){g+=rect(x,5,22,50)+rect(x+3,8,16,10)+line(x,23,x+22,23);}
-      g+=rect(76,14,19,40)+rect(78,17,4,15)+line(77,36,94,36)+rect(76,72,20,22)+rect(6,72,22,20)+line(38,94,62,94);
+      for(const x of [3,27,51]){g+=rect(x,4,22,55)+rect(x+3,7,16,12)+line(x,23,x+22,23);}
+      // Room plan has a tall right-wall unit and matching desk stations at both lower corners.
+      g+=rect(76,14,19,42)+rect(78,17,4,15)+line(77,36,94,36);
+      g+=rect(6,72,22,20)+rect(8,74,12,4)+rect(22,75,4,15);
+      for(let y=78;y<90;y+=3.2)g+=line(22,y,26,y);
+      g+=line(6,88,20,88)+rect(76,72,20,22)+rect(78,74,12,4)+rect(91,75,4,16);
+      for(let y=78;y<91;y+=3.2)g+=line(91,y,95,y);
+      g+=line(76,89,90,89)+line(38,94,62,94);
     } else if(scene.kind==="classroom"){
       g+=rect(23,0,54,3);for(let r=0;r<4;r++)for(let c=0;c<4;c++){const x=10+c*20,y=20+r*19;g+=rect(x,y,15,14)+rect(x+4,y+2,7,9)+rect(x+4.5,y+14,6,2);}
     } else if(scene.kind==="training"){
