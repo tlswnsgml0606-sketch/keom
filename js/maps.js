@@ -56,73 +56,76 @@
   function wholeMapDrawing(building){let g=`<rect x="1.5" y="59" width="680" height="307"/><path d="M1.5 162H681.5M1.5 265H681.5"/><rect x="1.5" y="3" width="323" height="56"/><text x="160" y="40" text-anchor="middle">옥상</text><text x="10" y="82">3F</text><text x="10" y="185">2F</text><text x="10" y="288">1F</text>`;for(const floor of [3,2]){const y=floor===3?71:174;for(let i=0;i<6;i++){const x=93+i*86,label=floor===3?[`3-${i+7}`,`3-${i+8}`,`3-${i+9}`,`3-${i+10}`,"행정실","3-11"][i]:`2-${i+7}`;g+=`<rect x="${x}" y="${y}" width="79" height="34"/><text x="${x+39.5}" y="${y+23}" text-anchor="middle">${esc(label)}</text>`;}for(let i=0;i<6;i++){const x=93+i*86,yy=y+46;g+=`<rect x="${x}" y="${yy}" width="79" height="34"/><text x="${x+39.5}" y="${yy+23}" text-anchor="middle">${floor}-${i+1}</text>`;}const sy=floor===3?100:202;g+=`<rect x="2" y="${sy}" width="32" height="42"/><text x="9" y="${sy+18}">계</text><text x="9" y="${sy+33}">단</text>`;}for(let i=0;i<6;i++){const x=93+i*86;g+=`<rect x="${x}" y="275" width="79" height="34"/><text x="${x+39.5}" y="298" text-anchor="middle">1-${i+1}</text>`;}g+=`<rect x="602" y="324" width="79" height="42"/><text x="641" y="351" text-anchor="middle">경비실</text><path d="M185 365v-16h88v16m0 0v-16h93v16"/>`;return `<svg class="whole-map-svg" viewBox="0 0 685 370" role="img" aria-label="${building==="front"?"전관":"후관"} 전체맵"><defs><filter id="whole-ink" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency=".025" numOctaves="1" seed="6" result="grain"/><feDisplacementMap in="SourceGraphic" in2="grain" scale=".5"/></filter></defs><g class="ink-strokes" filter="url(#whole-ink)">${g}</g></svg>`;}
   function roomOccupants(building,floor,room){const ownScene=sceneId(),target=room==="행정실"?"office":`room/${building}/${floor}/${room}`,people=[];if(ownScene===target&&state().character)people.push({name:state().character.name,portrait:state().character.portrait||"",arrivedAt:Number(state().map.playerArrivedAt?.[ownScene])||0});for(const person of state().remotePresence||[]){const parts=String(person.scene||"").split("/");if((target==="office"?person.scene===target:parts[0]==="room"&&parts[1]===building&&parts[2]===String(floor)&&parts[3]===room)&&person.name&&Date.now()-(Number(person.lastSeenAt)||Number(person.arrivedAt)||0)<45000)people.push(person);}return people.sort((a,b)=>(Number(a.arrivedAt)||0)-(Number(b.arrivedAt)||0));}
   function sceneArtKey(scene){if(scene.kind==="garden")return "garden";if(scene.kind==="hall")return `hall-${scene.floor}`;if(scene.kind==="stairs")return "stairs";if(scene.kind==="roof")return "roof";if(scene.kind==="auditorium")return "auditorium";if(scene.kind==="room2"||scene.kind==="room3")return `${scene.kind==="room2"?"room-2":"room-3"}${scene.rotation?`-${scene.rotation}`:""}`;if(scene.kind==="class-hall")return "class-hall";if(scene.kind==="classroom")return "classroom";if(scene.kind==="training")return scene.id==="training/basic"?"basic-training":"physical-training";if(scene.kind==="duel")return "duel";if(scene.kind==="checker")return "common-hall";if(scene.kind==="living")return "living-room";if(scene.id==="security")return "security";return "";}
-  function sceneArtRatio(file){const ratios={garden:796/1219,"hall-1":466/174,"hall-2":463/168,"hall-3":483/183,stairs:250/149,roof:351/215,auditorium:618/371,"room-2":241/160,"room-2-180":241/160,"room-2-90":160/241,"room-3":268/160,"room-3-180":268/160,"room-3-90":160/268,"class-hall":628/362,classroom:416/293,"basic-training":405/293,"physical-training":405/294,duel:416/294,"common-hall":375/96,"living-room":276/192,security:149/95};return ratios[file]||4/3;}
+  function sceneArtRatio(file){const ratios={garden:951/1509,"hall-1":546/199,"hall-2":546/175,"hall-3":543/182,stairs:249/152,roof:351/215,auditorium:610/368,"room-2":282/130,"room-2-180":282/130,"room-2-90":130/282,"room-3":280/163,"room-3-180":280/163,"room-3-90":163/280,"class-hall":626/315,classroom:416/291,"basic-training":405/291,"physical-training":405/294,duel:416/294,"common-hall":375/96,"living-room":276/192,security:172/95};return ratios[file]||4/3;}
   function sceneArtwork(scene){const key=sceneArtKey(scene),svg=sceneLineDrawing(scene,key);const marks=scene.objects.filter((o)=>o.action&&o.action!=="prop").map((o)=>`<button type="button" class="map-interaction-point" data-interaction-point="${esc(o.key)}" aria-label="${esc(o.label)} 상호작용" style="left:${Number.isFinite(o.markX)?o.markX:o.x+o.w/2}%;top:${Number.isFinite(o.markY)?o.markY:Math.max(1,o.y-1.5)}%"><span aria-hidden="true"></span></button>`).join("");const objects=scene.objects.filter((o)=>!o.markOnly).map((o)=>`<div class="world-object ${o.obstacle===false?"":"world-obstacle"}" style="left:${o.x}%;top:${o.y}%;width:${o.w}%;height:${o.h}%"></div>`).join("");return `<div class="scene-art art-${esc(scene.kind)}" data-scene-art="${esc(scene.kind)}" data-art-key="${esc(key)}" data-art-ratio="${sceneArtRatio(key)}" data-room-rotation="${scene.rotation||0}"${scene.floor?` data-floor="${scene.floor}"`:""}>${svg}${objects}${marks}</div>`;}
   function sceneLineDrawing(scene,key){const baseKey=key.replace(/-(90|180)$/,""),baseRatio=sceneArtRatio(baseKey),h=1000/baseRatio;const X=(v)=>v*10,Y=(v)=>v*h/100;const rect=(x,y,w,hh)=>`<rect x="${X(x)}" y="${Y(y)}" width="${X(w)}" height="${Y(hh)}"/>`;const line=(x1,y1,x2,y2)=>`<path d="M${X(x1)} ${Y(y1)}L${X(x2)} ${Y(y2)}"/>`;const ellipse=(x,y,rx,ry)=>`<ellipse cx="${X(x)}" cy="${Y(y)}" rx="${X(rx)}" ry="${Y(ry)}"/>`;const text=(x,y,t,size=3.1,anchor="middle")=>`<text x="${X(x)}" y="${Y(y)}" font-size="${Y(size)}" text-anchor="${anchor}" fill="#342d25" stroke="none">${esc(t)}</text>`;const border=()=>rect(1,1,98,98);let g=border();
     if(scene.kind==="garden"){
-      for(const [cx,cy,rx,ry] of [[50,3,9,5],[42,4,8,5],[58,4,8,5],[36,6,6,4],[64,6,6,4],[43,9,7,4],[57,9,7,4],[50,10,8,4],[50,91,9,5],[42,92,8,5],[58,92,8,5],[36,94,6,4],[64,94,6,4],[43,97,7,4],[57,97,7,4],[50,98,8,4]])g+=ellipse(cx,cy,rx,ry);
-      for(const x of [6,88])for(const y of [4,34,64]){g+=rect(x,y,11,27);for(let j=1;j<5;j++)g+=line(x+j*2.2,y,x+j*2.2,y+27);}
-      g+=ellipse(50,50,19,29)+ellipse(50,50,16,26)+ellipse(50,50,8,7)+ellipse(50,50,3.4,3.4);
-      for(const [x,y] of [[24,20],[76,20],[24,50],[76,50],[24,83],[76,83]])g+=text(x,y,"×",5);
-      g+=text(50,10,"ε  ૩  ૩  ૩",3)+text(50,94,"ε  ૩  ૩  ૩",3);
+      const shrub=(flip=false)=>{const y=flip?100:0,s=flip?-1:1;return `<path d="M${X(32)} ${Y(y+s*9)} C${X(29)} ${Y(y+s*4)} ${X(34)} ${Y(y-s*1)} ${X(39)} ${Y(y+s*2)} C${X(41)} ${Y(y-s*4)} ${X(47)} ${Y(y-s*2)} ${X(49)} ${Y(y+s*1)} C${X(53)} ${Y(y-s*4)} ${X(60)} ${Y(y-s*1)} ${X(61)} ${Y(y+s*3)} C${X(68)} ${Y(y)} ${X(71)} ${Y(y+s*6)} ${X(68)} ${Y(y+s*9)}"/>`;};
+      g+=shrub()+shrub(true);
+      for(const x of [7,83])for(const y of [7,39,72]){g+=rect(x,y,12,24);for(let j=1;j<5;j++)g+=line(x+j*2.4,y,x+j*2.4,y+24);}
+      g+=ellipse(50,50,19,31)+ellipse(50,50,16,28)+ellipse(50,50,10,8)+ellipse(50,50,3.2,3.2);
     } else if(scene.kind==="hall"){
-      const floor=Number(scene.floor);if(floor===1){g+=rect(2,3,15,27)+rect(4,5,5,5)+rect(4,13,6,5)+rect(10,9,5,13)+text(8,33,"경비실",2.4);g+=rect(22,4,20,7)+rect(44,4,20,7)+rect(76,4,10,9)+text(81,10,"소방",2);g+=rect(91,27,7,25);for(let i=0;i<6;i++){const x=4+i*15.2;g+=rect(x,88,11,7)+text(x+5.5,85,`1-${i+1}`,2.5);}}
-      if(floor===2){g+=rect(1,2,7,25)+rect(1,37,7,24)+text(11,56,"2-7",2.5,"start");for(let i=0;i<5;i++){const x=12+i*12;g+=rect(x,1,10,8)+text(x+5,15,`2-${i+8}`,2.5);}g+=rect(91,27,7,25);for(let i=0;i<6;i++){const x=4+i*15.2;g+=rect(x,88,11,7)+text(x+5.5,85,`2-${i+1}`,2.5);}}
-      if(floor===3){g+=rect(1,31,7,25)+text(11,47,"3-7",2.5,"start");for(let i=0;i<3;i++){const x=11+i*13;g+=rect(x,1,12,8)+text(x+6,15,`3-${i+8}`,2.5);}g+=rect(50,1,18,17)+text(59,14,"행정실",2.4);g+=rect(71,1,11,8)+text(76.5,15,"3-11",2.4);g+=rect(83,1,8,9)+text(87,8,"소방",2);g+=rect(92,27,7,25);for(let i=0;i<6;i++){const x=4+i*15.2;g+=rect(x,88,11,7)+text(x+5.5,85,`3-${i+1}`,2.5);}}
-      g+=line(1,1,99,1)+line(1,73,99,73);for(const y of [1,12,23,34,45,56,67,78,89,98])g+=line(92,y,99,y);
+      const floor=Number(scene.floor);
+      if(floor===1){g+=rect(2,3,15,27)+rect(4,5,5,5)+rect(3,13,7,7)+rect(11,9,4,13)+rect(4,21,10,5);g+=rect(23,3,19,7)+rect(44,3,19,7)+rect(76,3,10,9)+rect(77,4,8,6);g+=rect(91,27,7,25);for(let j=1;j<5;j++)g+=line(91+j*1.4,27,91+j*1.4,52);for(let i=0;i<6;i++){const x=4+i*15.2;g+=rect(x,89,11,6)+text(x+5.5,86,`1-${i+1}`,2.5);}}
+      else if(floor===2){g+=rect(1,2,7,25)+rect(1,37,7,24)+text(11,55,"2-7",2.5,"start");for(let i=0;i<5;i++){const x=12+i*12;g+=rect(x,1,10,8)+text(x+5,14,`2-${i+8}`,2.5);}g+=rect(91,27,7,25);for(let j=1;j<5;j++)g+=line(91+j*1.4,27,91+j*1.4,52);for(let i=0;i<6;i++){const x=4+i*15.2;g+=rect(x,89,11,6)+text(x+5.5,86,`2-${i+1}`,2.5);}}
+      else {g+=rect(1,31,7,25)+text(11,47,"3-7",2.5,"start");for(let i=0;i<3;i++){const x=11+i*13;g+=rect(x,1,12,8)+text(x+6,14,`3-${i+8}`,2.5);}g+=rect(50,1,18,17)+rect(52,3,14,11)+text(59,14,"사감실",2.2)+rect(71,1,11,8)+text(76.5,14,"3-11",2.3)+rect(83,1,8,9);g+=rect(92,27,7,25);for(let j=1;j<5;j++)g+=line(92+j*1.25,27,92+j*1.25,52);for(let i=0;i<6;i++){const x=4+i*15.2;g+=rect(x,89,11,6)+text(x+5.5,86,`3-${i+1}`,2.5);}}
+      g+=line(1,1,99,1)+line(1,74,99,74);
     } else if(scene.kind==="stairs"){
-      g+=line(20,12,92,1)+line(20,98,92,88);for(let i=0;i<9;i++){const x=6+i*8.7,y=30-i*3.3,w=25-i*1.5,hh=48-i*3.2;g+=rect(x,y,w,hh);}
+      g+=line(18,11,92,1)+line(18,99,92,89);for(let i=0;i<9;i++){const x=5+i*8.4,y=30-i*3.1,w=31-i*2.25,hh=48-i*3;g+=rect(x,y,w,hh);}
     } else if(scene.kind==="room2"){
       // Trace the two beds and separate bedside units from the original 2-person room plan.
       // The previous drawing folded the bedside units into the bed outlines, making them
       // look like oddly shaped desks.
-      g+=rect(4,5,38,32)+line(29,5,29,37)+rect(50,6,17,30);
-      g+=rect(4,44,38,33)+line(29,44,29,77)+rect(50,45,17,30);
-      // Upper-right desk/cabinet: narrow shelf on the left, desktop and small top shelf.
-      g+=rect(65,3,30,19)+rect(68,5,7,15);
-      for(let y=8;y<19;y+=3.4)g+=line(68,y,75,y);
-      g+=rect(79,3,13,5)+line(79,8,92,8)+text(85.5,7,"달력",1.8);
-      // Lower-right writing desk and drawer/book shelf.
-      g+=rect(72,75,27,21)+rect(74,77,13,4)+rect(90,77,7,17);
-      for(let y=80;y<94;y+=3.5)g+=line(90,y,97,y);
-      g+=line(72,91,87,91)+rect(43,92,16,5);
+      g+=rect(4,5,37,35)+line(31,5,31,40)+rect(32.5,10,7,19);
+      g+=rect(4,47,37,35)+line(31,47,31,82)+rect(32.5,52,7,19);
+      g+=rect(64,5,33,22)+rect(67,7,7,18)+rect(76,5,20,6)+rect(77,6,18,4);
+      for(let y=9;y<24;y+=3)g+=line(68,y,73,y);
+      g+=rect(69,72,28,23)+rect(71,74,15,5)+rect(89,74,6,18);
+      for(let y=78;y<92;y+=3.2)g+=line(90,y,94,y);
+      g+=rect(39,94,22,5);
     } else if(scene.kind==="room3"){
-      for(const x of [3,27,51]){g+=rect(x,4,22,55)+rect(x+3,7,16,12)+line(x,23,x+22,23);}
-      // Room plan has a tall right-wall unit and matching desk stations at both lower corners.
-      g+=rect(76,14,19,42)+rect(78,17,4,15)+line(77,36,94,36);
-      g+=rect(6,72,22,20)+rect(8,74,12,4)+rect(22,75,4,15);
-      for(let y=78;y<90;y+=3.2)g+=line(22,y,26,y);
-      g+=line(6,88,20,88)+rect(76,72,20,22)+rect(78,74,12,4)+rect(91,75,4,16);
-      for(let y=78;y<91;y+=3.2)g+=line(91,y,95,y);
-      g+=line(76,89,90,89)+line(38,94,62,94);
+      for(const x of [3,27,51]){g+=rect(x,4,22,55)+rect(x+3,7,16,12)+line(x,23,x+22,23)+line(x+3,22,x+19,22);}
+      g+=rect(77,13,18,44)+rect(79,16,5,15)+rect(87,16,6,36)+line(78,34,94,34);
+      const desk=(x,y)=>{g+=rect(x,y,21,20)+rect(x+2,y+2,12,4)+rect(x+15,y+2,4,15);for(let yy=y+6;yy<y+17;yy+=3)g+=line(x+16,yy,x+18.5,yy);g+=line(x+2,y+17,x+13,y+17);};desk(5,72);desk(75,72);g+=rect(39,94,22,5);
     } else if(scene.kind==="classroom"){
-      g+=rect(23,0,54,3);for(let r=0;r<4;r++)for(let c=0;c<4;c++){const x=10+c*20,y=20+r*19;g+=rect(x,y,15,14)+rect(x+4,y+2,7,9)+rect(x+4.5,y+14,6,2);}
+      g+=rect(23,0,54,7)+line(26,7,74,7);for(let r=0;r<4;r++)for(let c=0;c<4;c++){const x=8+c*21,y=20+r*19;g+=rect(x,y,15,12)+rect(x+5,y+1.5,5,9)+line(x+7.5,y+1.5,x+7.5,y+10.5)+rect(x+2,y+12,11,2.3);}
     } else if(scene.kind==="training"){
-      if(scene.id==="training/basic"){for(const x of [14,40,66]){g+=rect(x,5,18,43)+rect(x+4,3,10,5)+line(x+2,8,x+2,45)+line(x+16,8,x+16,45);}g+=line(1,69,99,69)+rect(1,70,98,28)+text(50,88,"사물함",6);}
-      else {for(const x of [6,64]){g+=rect(x+4,8,23,17)+rect(x,4,30,5)+rect(x,29,30,5)+line(x+5,9,x+5,25);}
-        for(const y of [42,54,66]){g+=rect(7,y,18,7)+rect(75,y,18,7);g+=rect(7,y,4,7)+rect(21,y,4,7)+rect(75,y,4,7)+rect(89,y,4,7);}
-        for(const [x,y,r] of [[15,87,5],[29,86,6],[70,87,6],[85,88,5]])g+=ellipse(x,y,r,r)+line(x-r*.6,y,x+r*.6,y);}
+      if(scene.id==="training/basic"){for(const x of [14,40,66]){g+=rect(x,7,18,40)+rect(x+4,3,10,5)+line(x+2,9,x+2,45)+line(x+16,9,x+16,45)+line(x+3,45,x+17,45);}g+=line(1,69,99,69)+rect(1,70,98,28)+line(1,84,99,84)+text(50,91,"사물함",5.5);}
+      else {for(const x of [6,64]){g+=rect(x+4,8,23,17)+rect(x,4,30,5)+rect(x,29,30,5)+line(x+5,9,x+5,25)+line(x+25,9,x+25,25);}
+        for(const y of [42,54,66])for(const x of [7,75])g+=rect(x,y,18,7)+rect(x,y-2,4,11)+rect(x+14,y-2,4,11);
+        for(const [x,y,r] of [[15,87,5],[29,86,6],[70,86,6],[85,87,5]])g+=ellipse(x,y,r,r)+line(x-r*.58,y,x+r*.58,y);}
     } else if(scene.kind==="duel"){
-      g+=rect(4,4,10,18)+rect(7,7,4,10)+rect(15,5,2,12);for(const x of [64,76,90]){g+=rect(x-3,2,6,3)+ellipse(x,5,1.8,1.8);}
+      g+=rect(4,5,10,18)+rect(7,8,4,11)+line(15,5,15,23);for(const x of [64,76,90]){g+=rect(x-4,3,8,4)+ellipse(x,5,1.7,1.7);}
       g+=rect(13,20,37,60)+rect(50,20,37,60)+line(50,20,50,80);
-      g+=`<path d="M${X(73)} ${Y(26)}L${X(88)} ${Y(7)}l3 3L${X(76)} ${Y(29)}Z M${X(86)} ${Y(9)}l4 -6l4 4l-5 5"/>`;
-      g+=rect(3,85,14,8)+rect(4,83,12,2)+line(6,84,6,91)+line(10,84,10,91)+ellipse(87,88,3,4)+ellipse(94,88,3,4);
+      g+=`<path d="M${X(72)} ${Y(28)}L${X(87)} ${Y(7)}L${X(91)} ${Y(11)}L${X(76)} ${Y(31)}Z M${X(84)} ${Y(9)}L${X(91)} ${Y(3)}L${X(96)} ${Y(7)}L${X(89)} ${Y(13)}Z"/>`;
+      g+=rect(3,86,14,7)+rect(4,83,12,2)+line(6,84,6,92)+line(10,84,10,92)+rect(19,86,2,7)+ellipse(20,84,1,1.4)+rect(24,86,2,7)+ellipse(25,84,1,1.4);
+      for(const x of [87,94])g+=`<path d="M${X(x)} ${Y(82)}C${X(x-4)} ${Y(85)} ${X(x-4)} ${Y(92)} ${X(x)} ${Y(94)}C${X(x+4)} ${Y(92)} ${X(x+4)} ${Y(85)} ${X(x)} ${Y(82)}Z"/>`+ellipse(x,82,1,1.4);
     } else if(scene.kind==="class-hall"){
-      g+=rect(10,0,20,9)+rect(38,0,20,9)+rect(68,0,20,9);g+=text(20,16,"수업실 1",3)+text(20,23,"(퇴마)",3)+text(48,16,"수업실 2",3)+text(48,23,"(섬세)",3)+text(78,16,"수업실 3",3)+text(78,23,"(민첩)",3);
-      g+=rect(0,34,6,16)+rect(0,53,6,16)+text(8,40,"휴게 여벌도",2.4,"start")+rect(95,20,3,60)+text(90,18,"학생 안내",2.4);
-      g+=rect(9,88,20,10)+rect(39,88,20,10)+rect(69,88,20,10)+text(19,86,"기초훈련실",3)+text(49,86,"대련실",3)+text(79,86,"신체단련실",3);
+      for(const x of [10,38,68])g+=rect(x,0,20,10)+line(x+3,2,x+17,2);
+      g+=text(20,17,"수업실 1",3)+text(20,24,"(퇴마)",3)+text(48,17,"수업실 2",3)+text(48,24,"(섬세)",3)+text(78,17,"수업실 3",3)+text(78,24,"(민첩)",3);
+      g+=rect(0,34,6,16)+line(0,42,6,42)+rect(0,53,6,16)+line(0,61,6,61)+text(8,40,"휴게 여벌도",2.2,"start");
+      g+=rect(95,20,3,60)+line(95,35,98,35)+line(95,52,98,52)+text(90,18,"학생 안내",2.2);
+      for(const x of [9,39,69])g+=rect(x,89,20,9);
+      g+=text(19,86,"기초훈련실",2.6)+text(49,86,"대련실",2.6)+text(79,86,"신체단련실",2.6);
     } else if(scene.kind==="auditorium"){
-      g+=rect(1,1,19,50);for(let y=11;y<50;y+=9)g+=line(1,y,20,y);g+=pathCurtain();g+=line(20,51,99,51)+rect(54,35,13,10)+line(59,37,59,44)+rect(62,37,4,7);
+      g+=rect(1,2,20,50);for(const y of [12,22,32,42])g+=line(1,y,21,y);g+=pathCurtain()+line(21,51,99,51);
+      g+=rect(54,36,14,10)+`<path d="M${X(57)} ${Y(38)}L${X(57)} ${Y(44)}Q${X(57)} ${Y(46)} ${X(59)} ${Y(45)}L${X(60)} ${Y(43)}L${X(60)} ${Y(38)}Z"/>`;
+      g+=rect(62,37,4,7)+line(62.7,39,65.3,39)+line(62.7,41,65.3,41)+line(62.7,43,65.3,43);
     } else if(scene.kind==="roof"){
-      g+=rect(1,1,98,98)+rect(6,7,88,82)+rect(6,7,36,29)+rect(42,10,4,20)+line(42,10,42,27);g+=text(65,27,"×",5)+text(94,34,"×",5)+text(32,60,"×",5);
+      g+=rect(1,1,98,98)+rect(6,7,88,82)+rect(6,7,36,29)+line(42,7,42,36)+line(42,7,42,27)+line(42,27,46,27)+line(6,36,42,36);
     } else if(scene.kind==="office"){
-      if(scene.id==="security"){g+=rect(8,10,9,10)+rect(9,33,26,13)+rect(5,50,10,9)+rect(20,50,10,9)+rect(46,17,8,24)+rect(46,50,8,24)+rect(68,24,23,45)+rect(58,41,9,14)+rect(36,90,28,8);}
+      if(scene.id==="security"){
+        g+=rect(4,4,36,46)+rect(10,7,15,12)+rect(7,26,19,12)+rect(11,39,17,7);
+        g+=line(12,10,23,10)+line(12,13,23,13)+rect(30,12,6,24)+line(30,20,36,20)+line(30,29,36,29);
+        g+=rect(44,10,8,19)+rect(44,39,8,19)+rect(68,17,24,50)+rect(72,22,15,13)+rect(72,39,15,21);
+        g+=ellipse(62,41,5,5)+line(62,46,62,54)+line(58,54,66,54)+rect(36,92,28,7);
+      }
     } else if(scene.kind==="checker"){
       for(let row=0;row<4;row++)for(let col=0;col<16;col++)g+=rect(col*6.25,row*18,6.25,18);
       g+=rect(20,0,13,18)+ellipse(26.5,9,3,3);
     } else if(scene.kind==="living"){
-      for(let row=0;row<3;row++)for(let col=0;col<3;col++){const x=20+col*25,y=12+row*24;g+=rect(x+5,y,7,4)+rect(x,y+5,4,7)+rect(x+13,y+5,4,7)+rect(x+5,y+12,7,4)+rect(x+5,y+5,7,7);}
-      g+=rect(43,94,14,5);
+      const table=(cx,cy)=>{g+=rect(cx-3.7,cy-3.7,7.4,7.4)+rect(cx-1.3,cy-8,2.6,4)+rect(cx-1.3,cy+4,2.6,4)+rect(cx-8,cy-1.3,4,2.6)+rect(cx+4,cy-1.3,4,2.6)+line(cx,cy-3.4,cx,cy+3.4);};
+      g+=rect(12,4,86,92);table(5,50);for(const y of [18,43,68])for(const x of [29,55,81])table(x,y);g+=rect(43,95,14,5);
     }
     let transform="";if(scene.rotation===180)transform=`rotate(180 500 ${h/2})`;else if(scene.rotation===90)transform="translate(0 1000) rotate(-90)";
     const viewW=scene.rotation===90?h:1000,viewH=scene.rotation===90?1000:h;
